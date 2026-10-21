@@ -20,7 +20,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models here so alembic autogenerate can detect them
-# from app.models import user  # noqa: F401  (add as models are created)
+import app.models  # noqa: F401
 
 target_metadata = Base.metadata
 
