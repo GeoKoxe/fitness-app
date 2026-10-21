@@ -41,3 +41,4 @@ async def client() -> AsyncClient:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         yield ac
+

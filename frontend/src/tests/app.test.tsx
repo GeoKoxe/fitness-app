@@ -9,3 +9,4 @@ describe('App', () => {
     expect(screen.getByText('Get started')).toBeInTheDocument()
   })
 })
+

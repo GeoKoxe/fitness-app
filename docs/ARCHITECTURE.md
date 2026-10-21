@@ -102,3 +102,4 @@ User Action
 - **Async by default**: FastAPI and httpx configured for async throughout.
 - **Tailwind v4**: Uses the new `@tailwindcss/vite` plugin — no `tailwind.config.js` or PostCSS required.
 - **Strict TypeScript**: `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`, `exactOptionalPropertyTypes` all enabled.
+
