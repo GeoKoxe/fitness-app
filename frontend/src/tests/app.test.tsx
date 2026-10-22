@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../App'
 
@@ -23,15 +23,29 @@ vi.mock('../services/measurementService', () => ({
   },
 }))
 
+vi.mock('../services/mealLogService', () => ({
+  mealLogService: {
+    getDailySummary: vi.fn().mockResolvedValue({
+      logged_date: '2026-10-23',
+      totals: { calories_kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+      by_category: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+      total_entries: 0,
+    }),
+  },
+}))
+
 describe('App', () => {
-  it('renders application brand and Phase 1 banner', async () => {
+  it('renders application brand and allows navigation between nutrition and measurements', async () => {
     render(<App />)
     expect(screen.getByText('FitPulse')).toBeInTheDocument()
-    expect(
-      screen.getByText('Phase 1: Profile & Measurements')
-    ).toBeInTheDocument()
-    expect(
-      await screen.findByText('Welcome to Your Fitness Hub')
-    ).toBeInTheDocument()
+    expect(screen.getByText('Food & Nutrition')).toBeInTheDocument()
+    expect(screen.getByText('Body & Measurements')).toBeInTheDocument()
+
+    // Switch to Body & Measurements
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Body & Measurements/i }))
+    })
+
+    expect(await screen.findByText('Welcome to Your Fitness Hub')).toBeInTheDocument()
   })
 })
