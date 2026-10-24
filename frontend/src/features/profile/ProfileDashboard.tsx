@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { BodyMeasurement } from '../../types/measurement'
 import type { UserProfile } from '../../types/profile'
+import { BodyTrendsChart } from './BodyTrendsChart'
 import { MeasurementForm } from './MeasurementForm'
 import { MeasurementHistory } from './MeasurementHistory'
 import { ProfileForm } from './ProfileForm'
 
-type TabType = 'overview' | 'log' | 'history'
+type TabType = 'overview' | 'log' | 'history' | 'trends'
 
 export function ProfileDashboard() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -223,6 +224,17 @@ export function ProfileDashboard() {
         >
           History
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('trends')}
+          className={`pb-3 px-4 text-sm font-semibold transition border-b-2 ${
+            activeTab === 'trends'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          Measurement Trends
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -337,6 +349,8 @@ export function ProfileDashboard() {
           onLogNew={() => setActiveTab('log')}
         />
       )}
+
+      {activeTab === 'trends' && <BodyTrendsChart />}
     </div>
   )
 }

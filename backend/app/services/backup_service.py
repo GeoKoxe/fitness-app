@@ -6,10 +6,12 @@ from app.models.food import Food
 from app.models.meal_log import MealLog
 from app.repositories.food_repository import food_repository
 from app.repositories.meal_log_repository import meal_log_repository
+from app.repositories.nutrition_goal_repository import nutrition_goal_repository
 from app.repositories.profile_repository import profile_repository
 from app.schemas.backup import NutritionExportData, NutritionImportResult
 from app.schemas.food import FoodResponse
 from app.schemas.meal_log import MealLogResponse
+from app.schemas.nutrition_goal import NutritionGoalResponse, NutritionGoalUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +29,20 @@ class BackupService:
             if user_profile_id
             else []
         )
+        # Export nutrition goals
+        goal = (
+            nutrition_goal_repository.get_by_profile_id(db, user_profile_id)
+            if user_profile_id
+            else None
+        )
+        goals_resp = NutritionGoalResponse.model_validate(goal) if goal else None
 
         return NutritionExportData(
-            version="1.0",
+            version="1.1",
             exported_at=datetime.now(timezone.utc),
             foods=[FoodResponse.model_validate(f) for f in foods],
             meal_logs=[MealLogResponse.model_validate(l) for l in meal_logs],
+            nutrition_goals=goals_resp,
         )
 
     def import_nutrition_data(
@@ -43,6 +53,7 @@ class BackupService:
                 success=False,
                 imported_foods=0,
                 imported_meal_logs=0,
+                imported_goals=False,
                 message=f"Unsupported backup schema version: '{data.version}'. Expected 1.x.",
             )
 
@@ -52,11 +63,13 @@ class BackupService:
                 success=False,
                 imported_foods=0,
                 imported_meal_logs=0,
+                imported_goals=False,
                 message="User profile not found. Please create a user profile before restoring nutrition data.",
             )
 
         imported_foods_count = 0
         imported_logs_count = 0
+        imported_goals_flag = False
 
         try:
             # Map old food id -> new/existing food id
@@ -123,12 +136,29 @@ class BackupService:
                 db.add(new_log)
                 imported_logs_count += 1
 
+            # Restore nutrition goals if present in backup
+            if data.nutrition_goals:
+                nutrition_goal_repository.save_or_update(
+                    db,
+                    profile.id,
+                    NutritionGoalUpdate(
+                        calories_kcal=data.nutrition_goals.calories_kcal,
+                        protein_g=data.nutrition_goals.protein_g,
+                        carbs_g=data.nutrition_goals.carbs_g,
+                        fat_g=data.nutrition_goals.fat_g,
+                        fiber_g=data.nutrition_goals.fiber_g,
+                    ),
+                )
+                imported_goals_flag = True
+
             db.commit()
+            goal_msg = " and nutrition goals" if imported_goals_flag else ""
             return NutritionImportResult(
                 success=True,
                 imported_foods=imported_foods_count,
                 imported_meal_logs=imported_logs_count,
-                message=f"Successfully restored {imported_foods_count} foods and {imported_logs_count} meal logs.",
+                imported_goals=imported_goals_flag,
+                message=f"Successfully restored {imported_foods_count} foods, {imported_logs_count} meal logs{goal_msg}.",
             )
         except Exception as e:
             db.rollback()
@@ -137,6 +167,7 @@ class BackupService:
                 success=False,
                 imported_foods=0,
                 imported_meal_logs=0,
+                imported_goals=False,
                 message=f"Import failed due to error: {str(e)}",
             )
 

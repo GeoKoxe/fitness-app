@@ -21,3 +21,10 @@ class UserProfile(Base, TimestampMixin):
         order_by="desc(BodyMeasurement.measured_at)",
     )
 
+    nutrition_goal = relationship(
+        "NutritionGoal",
+        back_populates="user_profile",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+

@@ -75,7 +75,7 @@ describe('NutritionDashboard', () => {
   it('renders daily nutrition summary and logged breakfast item', async () => {
     render(<NutritionDashboard />)
 
-    expect(await screen.findByText('Daily Nutrition Summary')).toBeInTheDocument()
+    expect(await screen.findByText(/Daily Nutrition Progress/i)).toBeInTheDocument()
     expect(screen.getByText('450')).toBeInTheDocument() // Total kcal
     expect(screen.getByText('35')).toBeInTheDocument() // Protein
     expect(screen.getByText('Greek Yogurt 2%')).toBeInTheDocument()

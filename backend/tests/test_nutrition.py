@@ -187,7 +187,7 @@ async def test_nutrition_backup_export_and_import(client: AsyncClient):
     export_res = await client.get("/api/nutrition/export")
     assert export_res.status_code == 200
     backup_data = export_res.json()
-    assert backup_data["version"] == "1.0"
+    assert backup_data["version"].startswith("1.")
     assert len(backup_data["foods"]) >= 1
     assert len(backup_data["meal_logs"]) >= 1
 

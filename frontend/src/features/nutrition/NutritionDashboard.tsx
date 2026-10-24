@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { DailyNutritionSummary, MealCategory } from '../../types/nutrition'
+import type { NutritionGoal } from '../../types/nutritionGoal'
 import { mealLogService } from '../../services/mealLogService'
+import { nutritionGoalService } from '../../services/nutritionGoalService'
 import { AddFoodModal } from './AddFoodModal'
-import { DailySummaryCard } from './DailySummaryCard'
+import { DailyProgressDashboard } from './DailyProgressDashboard'
 import { MealCategoryCard } from './MealCategoryCard'
 import { MyFoodsView } from './MyFoodsView'
 import { NutritionBackupModal } from './NutritionBackupModal'
+import { NutritionGoalModal } from './NutritionGoalModal'
+import { NutritionReportsView } from './NutritionReportsView'
 
 function getTodayString(): string {
   const d = new Date()
@@ -13,22 +17,30 @@ function getTodayString(): string {
   return new Date(d.getTime() - offset).toISOString().split('T')[0]!
 }
 
+type NutritionSubTab = 'log' | 'catalogue' | 'reports'
+
 export function NutritionDashboard() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString)
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null)
+  const [goals, setGoals] = useState<NutritionGoal | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeSubTab, setActiveSubTab] = useState<'log' | 'catalogue'>('log')
+  const [activeSubTab, setActiveSubTab] = useState<NutritionSubTab>('log')
 
-  // Add Food Modal state
+  // Modals
   const [addFoodCategory, setAddFoodCategory] = useState<MealCategory | null>(null)
   const [showBackupModal, setShowBackupModal] = useState(false)
+  const [showGoalsModal, setShowGoalsModal] = useState(false)
 
   const loadDailySummary = async (dateStr: string) => {
     setLoading(true)
     try {
-      const data = await mealLogService.getDailySummary(dateStr)
+      const [data, userGoals] = await Promise.all([
+        mealLogService.getDailySummary(dateStr),
+        nutritionGoalService.getGoals(),
+      ])
       setSummary(data)
+      setGoals(userGoals)
       setError(null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load daily nutrition log')
@@ -67,7 +79,7 @@ export function NutritionDashboard() {
     }
   }
 
-  const formattedDate = new Date(`${selectedDate}T00:00:00`).toLocaleDateString('el-GR', {
+  const formattedDate = new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
@@ -143,6 +155,17 @@ export function NutritionDashboard() {
             >
               My Foods
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('reports')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                activeSubTab === 'reports'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Reports & Trends
+            </button>
           </div>
 
           <button
@@ -169,7 +192,12 @@ export function NutritionDashboard() {
       {activeSubTab === 'log' && (
         <div className="space-y-6">
           {summary && (
-            <DailySummaryCard totals={summary.totals} totalEntries={summary.total_entries} />
+            <DailyProgressDashboard
+              totals={summary.totals}
+              totalEntries={summary.total_entries}
+              goals={goals}
+              onOpenGoalsModal={() => setShowGoalsModal(true)}
+            />
           )}
 
           {loading && !summary ? (
@@ -217,6 +245,7 @@ export function NutritionDashboard() {
       )}
 
       {activeSubTab === 'catalogue' && <MyFoodsView />}
+      {activeSubTab === 'reports' && <NutritionReportsView />}
 
       {/* Add Food Modal */}
       {addFoodCategory && (
@@ -225,6 +254,18 @@ export function NutritionDashboard() {
           loggedDate={selectedDate}
           onFoodLogged={() => loadDailySummary(selectedDate)}
           onClose={() => setAddFoodCategory(null)}
+        />
+      )}
+
+      {/* Edit Goals Modal */}
+      {showGoalsModal && (
+        <NutritionGoalModal
+          currentGoals={goals}
+          onGoalsSaved={(updated) => {
+            setGoals(updated)
+            loadDailySummary(selectedDate)
+          }}
+          onClose={() => setShowGoalsModal(false)}
         />
       )}
 
@@ -238,4 +279,3 @@ export function NutritionDashboard() {
     </div>
   )
 }
-

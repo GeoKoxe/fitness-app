@@ -22,6 +22,18 @@ from app.schemas.measurement import (
     BodyMeasurementResponse,
     BodyMeasurementUpdate,
 )
+from app.schemas.nutrition_goal import (
+    GoalEstimateResponse,
+    NutritionGoalBase,
+    NutritionGoalCreate,
+    NutritionGoalResponse,
+    NutritionGoalUpdate,
+)
+from app.schemas.nutrition_report import (
+    DailyReportItem,
+    NutritionReportResponse,
+    WeightTrendReport,
+)
 from app.schemas.profile import (
     UserProfileBase,
     UserProfileCreate,
@@ -53,4 +65,12 @@ __all__ = [
     "DailyNutritionSummary",
     "NutritionExportData",
     "NutritionImportResult",
+    "NutritionGoalBase",
+    "NutritionGoalCreate",
+    "NutritionGoalUpdate",
+    "NutritionGoalResponse",
+    "GoalEstimateResponse",
+    "DailyReportItem",
+    "WeightTrendReport",
+    "NutritionReportResponse",
 ]

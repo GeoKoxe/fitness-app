@@ -73,12 +73,14 @@ export interface NutritionExportData {
   exported_at: string
   foods: import('./food').Food[]
   meal_logs: MealLog[]
+  nutrition_goals?: import('./nutritionGoal').NutritionGoal | null
 }
 
 export interface NutritionImportResult {
   success: boolean
   imported_foods: number
   imported_meal_logs: number
+  imported_goals?: boolean
   message: string
 }
 
