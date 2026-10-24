@@ -152,6 +152,28 @@ class MealLogService:
         log = self.get_meal_log(db, log_id)
         meal_log_repository.delete(db, log)
 
+    def delete_category_logs(
+        self, db: Session, target_date: date, meal_category: str
+    ) -> int:
+        profile = profile_repository.get_current_profile(db)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User profile not found.",
+            )
+        cat_clean = meal_category.lower().strip()
+        deleted_count = (
+            db.query(MealLog)
+            .filter(
+                MealLog.user_profile_id == profile.id,
+                MealLog.logged_date == target_date,
+                MealLog.meal_category == cat_clean,
+            )
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        return deleted_count
+
     def get_daily_summary(
         self, db: Session, target_date: date
     ) -> DailyNutritionSummary:

@@ -93,3 +93,44 @@ def scale_food_nutrients(
         "sodium_mg": calc(scaled_sodium, 1),
     }
 
+
+def round_portion_quantity(quantity: float, unit: str) -> float:
+    """Enforce whole multiples of 5 for weight/volume, and whole integers for count-based units.
+
+    - Weight (g, grams, ml, milliliters): positive whole-number multiple of 5 (e.g. 20g, 25g, 150g).
+    - Count (serving, piece, unit, egg, banana): positive whole integer (1, 2, 3...).
+    """
+    if quantity <= 0:
+        return 0.0
+
+    unit_clean = (unit or "g").lower().strip()
+    if unit_clean in ("g", "grams", "gram", "ml", "milliliters", "milliliter"):
+        rounded = round(quantity / 5.0) * 5
+        return float(max(5, int(rounded)))
+    elif unit_clean in ("kg", "kilograms", "l", "liters", "liter"):
+        rounded = round(quantity * 1000.0 / 5.0) * 5
+        return float(max(5, int(rounded)))
+    else:
+        # Count-based units: whole counts (e.g. 1 egg, 2 bananas, 1 serving)
+        return float(max(1, int(round(quantity))))
+
+
+def validate_portion_quantity(quantity: float, unit: str) -> Tuple[bool, Optional[str]]:
+    """Validate that a meal-planner ingredient quantity adheres to portion rules.
+
+    Returns (is_valid, error_message).
+    """
+    if quantity <= 0:
+        return False, "Quantity must be greater than 0."
+
+    unit_clean = (unit or "g").lower().strip()
+    if unit_clean in ("g", "grams", "gram", "ml", "milliliters", "milliliter"):
+        if quantity % 5 != 0 or int(quantity) != quantity:
+            return False, f"Weight/volume quantity must be a whole-number multiple of 5 (e.g. 25 {unit}, 150 {unit}). Got {quantity}."
+    else:
+        if int(quantity) != quantity:
+            return False, f"Count-based ingredients must be whole counts (e.g. 1, 2). Got {quantity}."
+
+    return True, None
+
+

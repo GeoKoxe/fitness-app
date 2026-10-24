@@ -8,6 +8,7 @@ interface MealCategoryCardProps {
   onAddFood: (category: MealCategory) => void
   onUpdateQuantity: (logId: number, newQuantity: number) => Promise<void>
   onDeleteLog: (logId: number) => Promise<void>
+  onRemoveAll?: (category: MealCategory) => Promise<void>
 }
 
 export function MealCategoryCard({
@@ -17,10 +18,12 @@ export function MealCategoryCard({
   onAddFood,
   onUpdateQuantity,
   onDeleteLog,
+  onRemoveAll,
 }: MealCategoryCardProps) {
   const [editingLogId, setEditingLogId] = useState<number | null>(null)
   const [editQty, setEditQty] = useState<string>('')
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false)
 
   const mealTotalCalories = Math.round(logs.reduce((acc, l) => acc + l.calories_kcal, 0))
   const mealTotalProtein = Math.round(logs.reduce((acc, l) => acc + l.protein_g, 0) * 10) / 10
@@ -47,6 +50,20 @@ export function MealCategoryCard({
   const handleDelete = async (logId: number, foodName: string) => {
     if (window.confirm(`Are you sure you want to remove "${foodName}" from this meal?`)) {
       await onDeleteLog(logId)
+    }
+  }
+
+  const handleRemoveAll = async () => {
+    if (logs.length === 0 || !onRemoveAll) return
+    const confirmed = window.confirm(
+      `Remove all ${logs.length} logged items from ${title} for this date?`
+    )
+    if (!confirmed) return
+    setIsDeletingCategory(true)
+    try {
+      await onRemoveAll(category)
+    } finally {
+      setIsDeletingCategory(false)
     }
   }
 
@@ -97,10 +114,21 @@ export function MealCategoryCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-900 dark:text-slate-100 mr-1">
             {mealTotalCalories} <span className="text-xs font-normal text-slate-500">kcal</span>
           </span>
+          {logs.length > 0 && onRemoveAll && (
+            <button
+              type="button"
+              disabled={isDeletingCategory}
+              onClick={handleRemoveAll}
+              className="px-2.5 py-1.5 text-xs font-semibold rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 transition flex items-center gap-1 disabled:opacity-50"
+              title={`Remove all ${logs.length} foods from ${title}`}
+            >
+              {isDeletingCategory ? 'Removing...' : 'Remove All'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onAddFood(category)}

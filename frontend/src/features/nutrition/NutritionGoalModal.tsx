@@ -14,19 +14,19 @@ export function NutritionGoalModal({
   onClose,
 }: NutritionGoalModalProps) {
   const [calories, setCalories] = useState<string>(
-    currentGoals?.calories_kcal != null ? String(currentGoals.calories_kcal) : ''
+    currentGoals?.calories_kcal != null ? String(Math.round(currentGoals.calories_kcal)) : ''
   )
   const [protein, setProtein] = useState<string>(
-    currentGoals?.protein_g != null ? String(currentGoals.protein_g) : ''
+    currentGoals?.protein_g != null ? String(Math.round(currentGoals.protein_g)) : ''
   )
   const [carbs, setCarbs] = useState<string>(
-    currentGoals?.carbs_g != null ? String(currentGoals.carbs_g) : ''
+    currentGoals?.carbs_g != null ? String(Math.round(currentGoals.carbs_g)) : ''
   )
   const [fat, setFat] = useState<string>(
-    currentGoals?.fat_g != null ? String(currentGoals.fat_g) : ''
+    currentGoals?.fat_g != null ? String(Math.round(currentGoals.fat_g)) : ''
   )
   const [fiber, setFiber] = useState<string>(
-    currentGoals?.fiber_g != null ? String(currentGoals.fiber_g) : ''
+    currentGoals?.fiber_g != null ? String(Math.round(currentGoals.fiber_g)) : ''
   )
 
   const [estimate, setEstimate] = useState<GoalEstimate | null>(null)
@@ -36,11 +36,11 @@ export function NutritionGoalModal({
 
   useEffect(() => {
     if (currentGoals) {
-      setCalories(currentGoals.calories_kcal != null ? String(currentGoals.calories_kcal) : '')
-      setProtein(currentGoals.protein_g != null ? String(currentGoals.protein_g) : '')
-      setCarbs(currentGoals.carbs_g != null ? String(currentGoals.carbs_g) : '')
-      setFat(currentGoals.fat_g != null ? String(currentGoals.fat_g) : '')
-      setFiber(currentGoals.fiber_g != null ? String(currentGoals.fiber_g) : '')
+      setCalories(currentGoals.calories_kcal != null ? String(Math.round(currentGoals.calories_kcal)) : '')
+      setProtein(currentGoals.protein_g != null ? String(Math.round(currentGoals.protein_g)) : '')
+      setCarbs(currentGoals.carbs_g != null ? String(Math.round(currentGoals.carbs_g)) : '')
+      setFat(currentGoals.fat_g != null ? String(Math.round(currentGoals.fat_g)) : '')
+      setFiber(currentGoals.fiber_g != null ? String(Math.round(currentGoals.fiber_g)) : '')
     }
   }, [currentGoals])
 
@@ -51,10 +51,10 @@ export function NutritionGoalModal({
       const data = await nutritionGoalService.estimateGoals()
       setEstimate(data)
       setCalories(String(Math.round(data.calories_kcal)))
-      setProtein(String(data.protein_g))
-      setCarbs(String(data.carbs_g))
-      setFat(String(data.fat_g))
-      setFiber(String(data.fiber_g))
+      setProtein(String(Math.round(data.protein_g)))
+      setCarbs(String(Math.round(data.carbs_g)))
+      setFat(String(Math.round(data.fat_g)))
+      setFiber(String(Math.round(data.fiber_g)))
     } catch (err: unknown) {
       setErrorMessage(
         err instanceof Error ? err.message : 'Could not compute estimate. Please ensure profile is created.'
@@ -69,7 +69,7 @@ export function NutritionGoalModal({
     if (!trimmed) return null
     const num = parseFloat(trimmed)
     if (isNaN(num)) {
-      throw new Error(`${name} must be a valid number.`)
+      throw new Error(`${name} must be a valid whole number.`)
     }
     if (num < 0) {
       throw new Error(`${name} cannot be negative.`)
@@ -77,7 +77,7 @@ export function NutritionGoalModal({
     if (num > maxVal) {
       throw new Error(`${name} exceeds maximum limit of ${maxVal}.`)
     }
-    return Math.round(num * 10) / 10
+    return Math.round(num)
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -172,7 +172,7 @@ export function NutritionGoalModal({
               <input
                 id="target-calories"
                 type="number"
-                step="any"
+                step="1"
                 min="0"
                 max="15000"
                 placeholder="e.g. 2000 (optional)"
@@ -190,7 +190,7 @@ export function NutritionGoalModal({
               <input
                 id="target-protein"
                 type="number"
-                step="any"
+                step="1"
                 min="0"
                 max="2000"
                 placeholder="e.g. 140 (optional)"
@@ -208,7 +208,7 @@ export function NutritionGoalModal({
               <input
                 id="target-carbs"
                 type="number"
-                step="any"
+                step="1"
                 min="0"
                 max="2000"
                 placeholder="e.g. 220 (optional)"
@@ -226,7 +226,7 @@ export function NutritionGoalModal({
               <input
                 id="target-fat"
                 type="number"
-                step="any"
+                step="1"
                 min="0"
                 max="2000"
                 placeholder="e.g. 65 (optional)"
@@ -244,7 +244,7 @@ export function NutritionGoalModal({
               <input
                 id="target-fiber"
                 type="number"
-                step="any"
+                step="1"
                 min="0"
                 max="500"
                 placeholder="e.g. 30 (optional)"

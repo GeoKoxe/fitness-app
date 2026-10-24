@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class NutritionGoalBase(BaseModel):
@@ -9,6 +9,13 @@ class NutritionGoalBase(BaseModel):
     carbs_g: Optional[float] = Field(None, ge=0.0, le=2000.0)
     fat_g: Optional[float] = Field(None, ge=0.0, le=2000.0)
     fiber_g: Optional[float] = Field(None, ge=0.0, le=500.0)
+
+    @field_validator("calories_kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", mode="before")
+    @classmethod
+    def round_to_whole_number(cls, v):
+        if v is not None:
+            return round(float(v))
+        return None
 
 
 class NutritionGoalCreate(NutritionGoalBase):

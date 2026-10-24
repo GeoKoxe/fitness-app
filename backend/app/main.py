@@ -6,13 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import router
 from app.core.database import SessionLocal, get_db
 from app.db.seed_generic_foods import seed_generic_foods
+from app.db.seed_recipes import seed_built_in_recipes
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Seed generic foods if not present (idempotent)
+    # Startup: Seed generic foods & built-in recipes if not present (idempotent)
     db = None
     try:
         if get_db in app.dependency_overrides:
@@ -21,11 +22,14 @@ async def lifespan(app: FastAPI):
             db = next(gen)
         else:
             db = SessionLocal()
-        count = seed_generic_foods(db)
-        if count > 0:
-            logger.info("Startup: Seeded %d generic foods into database.", count)
+        food_count = seed_generic_foods(db)
+        if food_count > 0:
+            logger.info("Startup: Seeded %d generic foods into database.", food_count)
+        recipe_count = seed_built_in_recipes(db)
+        if recipe_count > 0:
+            logger.info("Startup: Seeded %d built-in recipes into database.", recipe_count)
     except Exception as exc:
-        logger.warning("Startup: Generic foods seeding encountered error: %s", exc)
+        logger.warning("Startup: Data seeding encountered error: %s", exc)
     finally:
         if db is not None:
             db.close()

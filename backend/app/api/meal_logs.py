@@ -76,6 +76,19 @@ def update_meal_log(
 
 
 @router.delete(
+    "/category",
+    summary="Remove all logged meal entries for a specific date and category",
+)
+def delete_category_logs(
+    date_val: date = Query(..., alias="date", description="Target date in YYYY-MM-DD"),
+    meal_category: str = Query(..., description="Meal category (breakfast, lunch, dinner, snacks)"),
+    db: Session = Depends(get_db),
+) -> dict:
+    count = meal_log_service.delete_category_logs(db, target_date=date_val, meal_category=meal_category)
+    return {"deleted_count": count, "message": f"Removed {count} entries from {meal_category} on {date_val}."}
+
+
+@router.delete(
     "/{log_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a logged meal entry",

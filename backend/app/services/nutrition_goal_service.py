@@ -87,30 +87,30 @@ class NutritionGoalService:
         user_act = (profile.activity_level or "").lower().strip()
         factor = activity_factors.get(user_act, 1.375)
 
-        tdee = round(bmr * factor, 1)
+        tdee = round(bmr * factor)
 
-        # 7. Suggested Macro Distribution (25% Protein, 45% Carbs, 30% Fat, 14g Fiber/1000kcal)
-        protein_g = round((tdee * 0.25) / 4.0, 1)
-        carbs_g = round((tdee * 0.45) / 4.0, 1)
-        fat_g = round((tdee * 0.30) / 9.0, 1)
-        fiber_g = round((tdee / 1000.0) * 14.0, 1)
+        # 7. Suggested Macro Distribution (25% Protein, 45% Carbs, 30% Fat, 14g Fiber/1000kcal) rounded to nearest whole number
+        protein_g = round((tdee * 0.25) / 4.0)
+        carbs_g = round((tdee * 0.45) / 4.0)
+        fat_g = round((tdee * 0.30) / 9.0)
+        fiber_g = round((tdee / 1000.0) * 14.0)
 
         explanation = (
             f"Calculated using the Mifflin-St Jeor equation (BMR: {bmr:.0f} kcal) "
             f"scaled by your activity level factor ({factor}x) for an estimated TDEE of {tdee:.0f} kcal. "
-            "Macro split: 25% protein, 45% carbs, 30% fat, and 14g fiber per 1,000 kcal. "
+            "Whole-number macro split: 25% protein, 45% carbs, 30% fat, and 14g fiber per 1,000 kcal. "
             "This is an optional consumer reference estimate, not a medical prescription. "
             "You can adjust and customize any target."
         )
 
         return GoalEstimateResponse(
-            calories_kcal=tdee,
-            protein_g=protein_g,
-            carbs_g=carbs_g,
-            fat_g=fat_g,
-            fiber_g=fiber_g,
+            calories_kcal=float(tdee),
+            protein_g=float(protein_g),
+            carbs_g=float(carbs_g),
+            fat_g=float(fat_g),
+            fiber_g=float(fiber_g),
             bmr_kcal=bmr,
-            tdee_kcal=tdee,
+            tdee_kcal=float(tdee),
             formula_explanation=explanation,
         )
 

@@ -3,6 +3,8 @@ import type { DailyNutritionSummary, MealCategory } from '../../types/nutrition'
 import type { NutritionGoal } from '../../types/nutritionGoal'
 import { mealLogService } from '../../services/mealLogService'
 import { nutritionGoalService } from '../../services/nutritionGoalService'
+import { MealPlannerDashboard } from '../mealPlanning/MealPlannerDashboard'
+import { RecipesView } from '../mealPlanning/RecipesView'
 import { AddFoodModal } from './AddFoodModal'
 import { DailyProgressDashboard } from './DailyProgressDashboard'
 import { MealCategoryCard } from './MealCategoryCard'
@@ -17,7 +19,7 @@ function getTodayString(): string {
   return new Date(d.getTime() - offset).toISOString().split('T')[0]!
 }
 
-type NutritionSubTab = 'log' | 'catalogue' | 'reports'
+type NutritionSubTab = 'log' | 'planner' | 'recipes' | 'catalogue' | 'reports'
 
 export function NutritionDashboard() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString)
@@ -26,6 +28,7 @@ export function NutritionDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeSubTab, setActiveSubTab] = useState<NutritionSubTab>('log')
+  const [selectedRecipeIdForView, setSelectedRecipeIdForView] = useState<number | null>(null)
 
   // Modals
   const [addFoodCategory, setAddFoodCategory] = useState<MealCategory | null>(null)
@@ -50,8 +53,20 @@ export function NutritionDashboard() {
   }
 
   useEffect(() => {
-    loadDailySummary(selectedDate)
-  }, [selectedDate])
+    if (activeSubTab === 'log') {
+      loadDailySummary(selectedDate)
+    }
+  }, [selectedDate, activeSubTab])
+
+  const handleMealLogged = async (targetDate: string) => {
+    setSelectedDate(targetDate)
+    await loadDailySummary(targetDate)
+  }
+
+  const handleViewRecipe = (recipeId: number) => {
+    setSelectedRecipeIdForView(recipeId)
+    setActiveSubTab('recipes')
+  }
 
   const changeDateByDays = (days: number) => {
     const current = new Date(`${selectedDate}T00:00:00`)
@@ -79,6 +94,15 @@ export function NutritionDashboard() {
     }
   }
 
+  const handleRemoveCategoryLogs = async (category: MealCategory) => {
+    try {
+      await mealLogService.deleteCategoryLogs(selectedDate, category)
+      await loadDailySummary(selectedDate)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to clear category meals')
+    }
+  }
+
   const formattedDate = new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, {
     weekday: 'short',
     year: 'numeric',
@@ -90,49 +114,53 @@ export function NutritionDashboard() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       {/* Top Controls & Sub-navigation */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        {/* Date Navigator */}
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-xs">
-          <button
-            type="button"
-            onClick={() => changeDateByDays(-1)}
-            className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
-            aria-label="Previous day"
-          >
-            ◀
-          </button>
+        {/* Date Navigator (visible on Daily Log tab) */}
+        {activeSubTab === 'log' ? (
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-xs">
+            <button
+              type="button"
+              onClick={() => changeDateByDays(-1)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+              aria-label="Previous day"
+            >
+              ◀
+            </button>
 
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-            className="text-xs font-semibold px-2 py-1 rounded-lg bg-transparent border-0 text-slate-800 dark:text-slate-200 focus:ring-0 cursor-pointer"
-          />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+              className="text-xs font-semibold px-2 py-1 rounded-lg bg-transparent border-0 text-slate-800 dark:text-slate-200 focus:ring-0 cursor-pointer"
+            />
 
-          <span className="text-xs text-slate-400 font-medium hidden md:inline">
-            ({formattedDate})
-          </span>
+            <span className="text-xs text-slate-400 font-medium hidden md:inline">
+              ({formattedDate})
+            </span>
 
-          <button
-            type="button"
-            onClick={() => changeDateByDays(1)}
-            className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
-            aria-label="Next day"
-          >
-            ▶
-          </button>
+            <button
+              type="button"
+              onClick={() => changeDateByDays(1)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+              aria-label="Next day"
+            >
+              ▶
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setSelectedDate(getTodayString())}
-            className="ml-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition"
-          >
-            Today
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(getTodayString())}
+              className="ml-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition"
+            >
+              Today
+            </button>
+          </div>
+        ) : (
+          <div />
+        )}
 
         {/* View Switcher & Backup */}
         <div className="flex items-center gap-2">
-          <div className="flex rounded-xl bg-slate-200 dark:bg-slate-800 p-1 text-xs font-semibold">
+          <div className="flex flex-wrap rounded-xl bg-slate-200 dark:bg-slate-800 p-1 text-xs font-semibold">
             <button
               type="button"
               onClick={() => setActiveSubTab('log')}
@@ -143,6 +171,28 @@ export function NutritionDashboard() {
               }`}
             >
               Daily Log
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('planner')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                activeSubTab === 'planner'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Meal Planner
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('recipes')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                activeSubTab === 'recipes'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Recipes
             </button>
             <button
               type="button"
@@ -214,6 +264,7 @@ export function NutritionDashboard() {
                 onAddFood={(cat) => setAddFoodCategory(cat)}
                 onUpdateQuantity={handleUpdateQuantity}
                 onDeleteLog={handleDeleteLog}
+                onRemoveAll={handleRemoveCategoryLogs}
               />
               <MealCategoryCard
                 category="lunch"
@@ -222,6 +273,7 @@ export function NutritionDashboard() {
                 onAddFood={(cat) => setAddFoodCategory(cat)}
                 onUpdateQuantity={handleUpdateQuantity}
                 onDeleteLog={handleDeleteLog}
+                onRemoveAll={handleRemoveCategoryLogs}
               />
               <MealCategoryCard
                 category="dinner"
@@ -230,6 +282,7 @@ export function NutritionDashboard() {
                 onAddFood={(cat) => setAddFoodCategory(cat)}
                 onUpdateQuantity={handleUpdateQuantity}
                 onDeleteLog={handleDeleteLog}
+                onRemoveAll={handleRemoveCategoryLogs}
               />
               <MealCategoryCard
                 category="snacks"
@@ -238,12 +291,26 @@ export function NutritionDashboard() {
                 onAddFood={(cat) => setAddFoodCategory(cat)}
                 onUpdateQuantity={handleUpdateQuantity}
                 onDeleteLog={handleDeleteLog}
+                onRemoveAll={handleRemoveCategoryLogs}
               />
             </div>
           )}
         </div>
       )}
 
+      {activeSubTab === 'planner' && (
+        <MealPlannerDashboard
+          goals={goals}
+          onMealLogged={handleMealLogged}
+          onViewRecipe={handleViewRecipe}
+        />
+      )}
+      {activeSubTab === 'recipes' && (
+        <RecipesView
+          initialRecipeId={selectedRecipeIdForView}
+          onCloseInitialRecipe={() => setSelectedRecipeIdForView(null)}
+        />
+      )}
       {activeSubTab === 'catalogue' && <MyFoodsView />}
       {activeSubTab === 'reports' && <NutritionReportsView />}
 

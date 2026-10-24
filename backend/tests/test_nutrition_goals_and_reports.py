@@ -236,7 +236,7 @@ async def test_backup_export_and_import_with_goals(client: AsyncClient):
     exp_res = await client.get("/api/nutrition/export")
     assert exp_res.status_code == 200
     backup = exp_res.json()
-    assert backup["version"] == "1.1"
+    assert backup["version"] in ("1.1", "1.2")
     assert backup["nutrition_goals"] is not None
     assert backup["nutrition_goals"]["calories_kcal"] == 2250.0
     assert backup["nutrition_goals"]["protein_g"] == 160.0

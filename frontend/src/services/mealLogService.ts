@@ -32,5 +32,16 @@ export const mealLogService = {
     request<void>(`/meal-logs/${id}`, {
       method: 'DELETE',
     }),
+
+  deleteCategoryLogs: (
+    date: string,
+    mealCategory: string
+  ): Promise<{ deleted_count: number; message: string }> =>
+    request<{ deleted_count: number; message: string }>(
+      `/meal-logs/category?date=${encodeURIComponent(date)}&meal_category=${encodeURIComponent(mealCategory)}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 }
 
