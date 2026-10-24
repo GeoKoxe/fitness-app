@@ -49,7 +49,7 @@ export interface UnmetConstraintDetail {
   actual_value: number
   tolerance_pct: number
   upper_limit: number
-  status: 'acceptable' | 'exceeded' | 'under'
+  status: 'acceptable' | 'exceeded' | 'under' | 'conflict' | 'relaxed'
   suggestion?: string | null | undefined
 }
 

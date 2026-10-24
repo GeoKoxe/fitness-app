@@ -6,17 +6,40 @@ import { recipeService } from '../../services/recipeService'
 
 interface ReplaceMealModalProps {
   meal: PlannedMeal
+  activePlan?: MealPlan | null | undefined
   onClose: () => void
   onSuccess: (updatedPlan: MealPlan) => void
 }
 
-export function ReplaceMealModal({ meal, onClose, onSuccess }: ReplaceMealModalProps) {
+export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: ReplaceMealModalProps) {
   const [recipes, setRecipes] = useState<RecipeSummary[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [search, setSearch] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState<string>(meal.meal_category)
   const [error, setError] = useState<string | null>(null)
+
+  // Check repetition and spacing against activePlan
+  const checkConflict = (recipeId: number): string | null => {
+    if (!activePlan) return null
+    const otherOccurrences: number[] = []
+    for (const d of activePlan.days) {
+      for (const m of d.meals) {
+        if (m.id !== meal.id && m.recipe_id === recipeId) {
+          otherOccurrences.push(d.day_number)
+        }
+      }
+    }
+    if (otherOccurrences.length >= 2) {
+      return 'Used twice this week (max limit)'
+    }
+    for (const d of otherOccurrences) {
+      if (Math.abs(meal.day_number - d) < 3) {
+        return `Used on Day ${d} (needs ≥2 days separation)`
+      }
+    }
+    return null
+  }
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -103,38 +126,53 @@ export function ReplaceMealModal({ meal, onClose, onSuccess }: ReplaceMealModalP
           ) : recipes.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-400">No matching recipes found.</div>
           ) : (
-            recipes.map((r) => (
-              <div
-                key={r.id}
-                className="py-3 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition-colors group"
-              >
-                <div>
-                  <div className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                    {r.name}
-                    {r.is_built_in && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                        Built-in
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
-                    <span>{r.per_serving_calories} kcal</span>
-                    <span>{r.per_serving_protein}g P</span>
-                    <span>{r.per_serving_carbs}g C</span>
-                    <span>{r.per_serving_fat}g F</span>
-                    <span>🕒 {r.prep_time_minutes + r.cook_time_minutes} min</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleSelectRecipe(r.id)}
-                  disabled={submitting}
-                  className="px-3 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
+            recipes.map((r) => {
+              const conflict = checkConflict(r.id)
+              return (
+                <div
+                  key={r.id}
+                  className={`py-3 flex items-center justify-between px-2 rounded-lg transition-colors group ${
+                    conflict ? 'opacity-60 bg-slate-50/50' : 'hover:bg-slate-50'
+                  }`}
                 >
-                  {submitting ? 'Applying...' : 'Select'}
-                </button>
-              </div>
-            ))
+                  <div className="pr-3">
+                    <div className="text-sm font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
+                      <span>{r.name}</span>
+                      {r.is_built_in && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                          Built-in
+                        </span>
+                      )}
+                      {conflict && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                          ⚠️ {conflict}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
+                      <span>{r.per_serving_calories} kcal</span>
+                      <span>{r.per_serving_protein}g P</span>
+                      <span>{r.per_serving_carbs}g C</span>
+                      <span>{r.per_serving_fat}g F</span>
+                      <span>🕒 {r.prep_time_minutes + r.cook_time_minutes} min</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRecipe(r.id)}
+                    disabled={submitting || conflict !== null}
+                    title={conflict || 'Select this recipe'}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shrink-0 ${
+                      conflict
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {submitting ? 'Applying...' : conflict ? 'Unavailable' : 'Select'}
+                  </button>
+                </div>
+              )
+            })
           )}
         </div>
 

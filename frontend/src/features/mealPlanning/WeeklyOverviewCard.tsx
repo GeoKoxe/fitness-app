@@ -28,23 +28,25 @@ export function WeeklyOverviewCard({ overview }: WeeklyOverviewCardProps) {
 
   const getAdherenceBadge = (pct: number | null | undefined) => {
     if (pct == null) return null
+    const dev = Math.round((pct - 100) * 10) / 10
+    const devStr = dev > 0 ? `+${dev}%` : `${dev}%`
     if (pct >= 100 - tolerance && pct <= 100 + tolerance) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
-          {pct}% on target
+          {pct}% on target ({devStr})
         </span>
       )
     }
     if (pct < 100 - tolerance) {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-          {pct}% under
+          {pct}% under ({devStr})
         </span>
       )
     }
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-800">
-        {pct}% over
+        {pct}% over ({devStr})
       </span>
     )
   }
@@ -98,9 +100,13 @@ export function WeeklyOverviewCard({ overview }: WeeklyOverviewCardProps) {
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span
                     className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                      item.status === 'exceeded'
-                        ? 'bg-rose-100 text-rose-800'
-                        : 'bg-amber-100 text-amber-800'
+                      item.status === 'conflict'
+                        ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                        : item.status === 'relaxed'
+                          ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                          : item.status === 'exceeded'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-amber-100 text-amber-800'
                     }`}
                   >
                     {item.status}

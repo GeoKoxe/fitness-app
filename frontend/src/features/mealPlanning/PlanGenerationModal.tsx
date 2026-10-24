@@ -13,6 +13,8 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
   const [name, setName] = useState<string>('7-Day Meal Plan')
   const [targetCalories, setTargetCalories] = useState<number>(Math.round(goals?.calories_kcal || 2000))
   const [targetProtein, setTargetProtein] = useState<number>(Math.round(goals?.protein_g || 120))
+  const [targetCarbs, setTargetCarbs] = useState<number>(Math.round(goals?.carbs_g || 225))
+  const [targetFat, setTargetFat] = useState<number>(Math.round(goals?.fat_g || 65))
   const [enabledCategories, setEnabledCategories] = useState<string[]>([
     'breakfast',
     'lunch',
@@ -25,6 +27,12 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
   const [targetTolerance, setTargetTolerance] = useState<number>(10)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Live Atwater Mathematical Compatibility Check
+  const macroCalories = 4 * targetProtein + 4 * targetCarbs + 9 * targetFat
+  const macroDiff = Math.abs(macroCalories - targetCalories)
+  const macroDiffPct = targetCalories > 0 ? (macroDiff / targetCalories) * 100 : 0
+  const hasMacroConflict = macroDiffPct > targetTolerance * 1.5
 
   const toggleCategory = (cat: string) => {
     setEnabledCategories((prev) =>
@@ -54,6 +62,8 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
         disliked_foods: disliked,
         target_calories: targetCalories,
         target_protein: targetProtein,
+        target_carbs: targetCarbs,
+        target_fat: targetFat,
         simplicity_preference: simplicityPreference,
         max_cooking_time_minutes: maxCookingTime ? parseInt(maxCookingTime, 10) : null,
         target_tolerance_pct: targetTolerance,
@@ -107,10 +117,10 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
           </div>
 
           {/* Targets */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Target Calories (kcal)
+                Calories (kcal)
               </label>
               <input
                 type="number"
@@ -123,7 +133,7 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Target Protein (g)
+                Protein (g)
               </label>
               <input
                 type="number"
@@ -134,7 +144,57 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Carbs (g)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="1000"
+                value={targetCarbs}
+                onChange={(e) => setTargetCarbs(parseInt(e.target.value, 10) || 0)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Fat (g)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="500"
+                value={targetFat}
+                onChange={(e) => setTargetFat(parseInt(e.target.value, 10) || 0)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
           </div>
+
+          {/* Live Atwater Feedback */}
+          {hasMacroConflict ? (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                <span>⚠️</span>
+                <span>Macronutrient & Energy Discrepancy</span>
+              </div>
+              <p className="leading-relaxed">
+                Configured macros ({targetProtein}g P, {targetCarbs}g C, {targetFat}g F) provide approximately{' '}
+                <strong>{macroCalories} kcal</strong> via 4/4/9 kcal/g conversion, which deviates by{' '}
+                <strong>{macroDiffPct.toFixed(1)}%</strong> from your {targetCalories} kcal goal. The planner will flag this conflict in your overview.
+              </p>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-500 flex items-center justify-between px-1">
+              <span>
+                Calculated energy: <strong>{macroCalories} kcal</strong> (4P + 4C + 9F)
+              </span>
+              <span className="text-emerald-700 font-semibold">
+                ✓ Compatible within &plusmn;{targetTolerance}%
+              </span>
+            </div>
+          )}
 
           {/* Tolerance */}
           <div>

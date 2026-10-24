@@ -5,10 +5,11 @@ import { mealPlanService } from '../../services/mealPlanService'
 interface ShoppingListViewProps {
   planId: number
   planName: string
+  incompleteMealCount?: number
   onClose?: () => void
 }
 
-export function ShoppingListView({ planId, planName, onClose }: ShoppingListViewProps) {
+export function ShoppingListView({ planId, planName, incompleteMealCount, onClose }: ShoppingListViewProps) {
   const [items, setItems] = useState<ShoppingListItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -140,6 +141,18 @@ export function ShoppingListView({ planId, planName, onClose }: ShoppingListView
           Prices are not tracked locally. Cost estimates are never fabricated.
         </div>
       </div>
+
+      {/* Incomplete Meals Notice */}
+      {incompleteMealCount && incompleteMealCount > 0 ? (
+        <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+          <span className="text-amber-600 font-bold shrink-0">⚠️ Notice:</span>
+          <div>
+            Your meal plan currently contains <strong>{incompleteMealCount}</strong> incomplete meal slot(s).
+            Because these slots have no recipes or ingredients assigned, their groceries cannot be included in this shopping list.
+            Return to the meal plan and use <strong>Replace</strong> to choose recipes and include their ingredients.
+          </div>
+        </div>
+      ) : null}
 
       {error && (
         <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">

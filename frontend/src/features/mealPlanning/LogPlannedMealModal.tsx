@@ -25,6 +25,7 @@ export function LogPlannedMealModal({
   const [error, setError] = useState<string | null>(null)
 
   const isDayMode = !meal && dayNumber != null
+  const isIncompleteMeal = Boolean(meal && !meal.recipe_id && meal.items.length === 0)
 
   const handleConfirm = async () => {
     setLoading(true)
@@ -70,6 +71,13 @@ export function LogPlannedMealModal({
         {error && (
           <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-lg">
             {error}
+          </div>
+        )}
+
+        {isIncompleteMeal && (
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+            ⚠️ <strong>Cannot Log Incomplete Meal:</strong> This slot has no recipe or ingredients assigned.
+            Please use <strong>Replace</strong> to choose a recipe before logging it to your food diary.
           </div>
         )}
 
@@ -142,8 +150,8 @@ export function LogPlannedMealModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+            disabled={loading || isIncompleteMeal}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Logging...' : 'Confirm & Log to Diary'}
           </button>

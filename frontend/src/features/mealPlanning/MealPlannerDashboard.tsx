@@ -195,6 +195,9 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
         <ShoppingListView
           planId={activePlan.id}
           planName={activePlan.name}
+          incompleteMealCount={
+            activePlan.days.flatMap((d) => d.meals).filter((m) => !m.recipe_id && m.items.length === 0).length
+          }
           onClose={() => setShowShoppingList(false)}
         />
       ) : (
@@ -335,6 +338,7 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
       {mealToReplace && (
         <ReplaceMealModal
           meal={mealToReplace}
+          activePlan={activePlan}
           onClose={() => setMealToReplace(null)}
           onSuccess={(updated) => {
             setActivePlan(updated)

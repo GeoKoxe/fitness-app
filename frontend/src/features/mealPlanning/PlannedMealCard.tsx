@@ -23,6 +23,7 @@ export function PlannedMealCard({
 }: PlannedMealCardProps) {
   const [expanded, setExpanded] = useState<boolean>(false)
   const [regenerating, setRegenerating] = useState<boolean>(false)
+  const isIncomplete = !meal.recipe_id && meal.items.length === 0
 
   const handleRegenerate = async () => {
     setRegenerating(true)
@@ -75,6 +76,17 @@ export function PlannedMealCard({
           )}
         </div>
       </div>
+
+      {/* Incomplete Slot Warning Banner */}
+      {isIncomplete && (
+        <div className="mt-2.5 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-start gap-2">
+          <span className="text-amber-600 font-bold shrink-0">⚠️ Incomplete Slot:</span>
+          <div className="flex-1">
+            <span>No recipe currently assigned. Click <strong>Replace</strong> to choose or create a recipe.</span>
+            {meal.notes && <div className="text-[11px] text-amber-700/80 mt-0.5">{meal.notes}</div>}
+          </div>
+        </div>
+      )}
 
       {/* Expanded Ingredients List */}
       {expanded && (
@@ -141,8 +153,9 @@ export function PlannedMealCard({
           <button
             type="button"
             onClick={() => onAdjustPortions(meal)}
-            title="Adjust portion size"
-            className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+            disabled={isIncomplete}
+            title={isIncomplete ? 'Cannot adjust portions for an incomplete meal' : 'Adjust portion size'}
+            className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Portions
           </button>
@@ -166,7 +179,13 @@ export function PlannedMealCard({
           <button
             type="button"
             onClick={() => onLogMeal(meal)}
-            className="px-2.5 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-2xs transition-colors"
+            disabled={isIncomplete}
+            title={isIncomplete ? 'Assign a recipe before logging to diary' : 'Log to food diary'}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-md shadow-2xs transition-colors ${
+              isIncomplete
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'text-white bg-indigo-600 hover:bg-indigo-700'
+            }`}
           >
             Log to Diary
           </button>

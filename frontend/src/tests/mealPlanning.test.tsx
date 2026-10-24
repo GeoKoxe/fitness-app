@@ -5,6 +5,7 @@ import { DislikedFoodsModal } from '../features/mealPlanning/DislikedFoodsModal'
 import { MealPlannerDashboard } from '../features/mealPlanning/MealPlannerDashboard'
 import { PlannedMealCard } from '../features/mealPlanning/PlannedMealCard'
 import { RecipesView } from '../features/mealPlanning/RecipesView'
+import { ReplaceMealModal } from '../features/mealPlanning/ReplaceMealModal'
 import { ShoppingListView } from '../features/mealPlanning/ShoppingListView'
 import { WeeklyOverviewCard } from '../features/mealPlanning/WeeklyOverviewCard'
 import { MealCategoryCard } from '../features/nutrition/MealCategoryCard'
@@ -766,6 +767,49 @@ describe('Phase 5: Meal Planning and Shopping Lists', () => {
     // Recipe 1 should remain, Recipe 2 (id=2, Mediterranean Tuna Salad) should be filtered out
     expect(screen.getByText('Classic Banana Honey Oatmeal')).toBeInTheDocument()
     expect(screen.queryByText('Mediterranean Tuna Salad')).not.toBeInTheDocument()
+  })
+
+  it('Phase 6: ReplaceMealModal warns and disables recipes violating 2-day spacing rule', async () => {
+    vi.mocked(recipeService.getRecipes).mockResolvedValue(mockRecipes)
+    // Meal on Day 1
+    const targetMeal = mockPlan.days[0]!.meals[0]! // Day 1 meal
+
+    // Active plan has Recipe 2 (id=2) on Day 2 (|2 - 1| = 1 < 3 -> conflict!)
+    const planWithDay2Conflict: MealPlan = {
+      ...mockPlan,
+      days: [
+        mockPlan.days[0]!,
+        {
+          ...mockPlan.days[0]!,
+          day_number: 2,
+          meals: [
+            {
+              ...mockPlan.days[0]!.meals[0]!,
+              id: 999,
+              recipe_id: 2, // Mediterranean Tuna Salad is on Day 2
+            },
+          ],
+        },
+      ],
+    }
+
+    await act(async () => {
+      render(
+        <ReplaceMealModal
+          meal={targetMeal}
+          activePlan={planWithDay2Conflict}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+    })
+
+    // Recipe 2 should be marked unavailable with warning badge
+    expect(screen.getByText(/Used on Day 2 \(needs ≥2 days separation\)/i)).toBeInTheDocument()
+
+    // Unavailable button should be disabled
+    const unavailableBtn = screen.getByRole('button', { name: /Unavailable/i })
+    expect(unavailableBtn).toBeDisabled()
   })
 })
 
