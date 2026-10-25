@@ -7,6 +7,7 @@ from app.api.router import router
 from app.core.database import SessionLocal, get_db
 from app.db.seed_generic_foods import seed_generic_foods
 from app.db.seed_recipes import seed_built_in_recipes
+from app.db.seed_exercises import seed_built_in_exercises
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ async def lifespan(app: FastAPI):
         recipe_count = seed_built_in_recipes(db)
         if recipe_count > 0:
             logger.info("Startup: Seeded %d built-in recipes into database.", recipe_count)
+        exercise_count = seed_built_in_exercises(db)
+        if exercise_count > 0:
+            logger.info("Startup: Seeded %d built-in exercises into database.", exercise_count)
     except Exception as exc:
         logger.warning("Startup: Data seeding encountered error: %s", exc)
     finally:

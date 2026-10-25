@@ -28,3 +28,10 @@ class UserProfile(Base, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    training_profile = relationship(
+        "TrainingProfile",
+        back_populates="user_profile",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
