@@ -1,3 +1,6 @@
+import type { BackupImportResult, LegacyNutritionBackup, SystemBackupV2 } from './backup'
+export type { BackupImportResult, LegacyNutritionBackup, SystemBackupV2 }
+
 export type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snacks'
 
 export interface MealLog {
@@ -68,19 +71,5 @@ export interface DailyNutritionSummary {
   total_entries: number
 }
 
-export interface NutritionExportData {
-  version: string
-  exported_at: string
-  foods: import('./food').Food[]
-  meal_logs: MealLog[]
-  nutrition_goals?: import('./nutritionGoal').NutritionGoal | null
-}
-
-export interface NutritionImportResult {
-  success: boolean
-  imported_foods: number
-  imported_meal_logs: number
-  imported_goals?: boolean
-  message: string
-}
-
+export type NutritionExportData = LegacyNutritionBackup
+export type NutritionImportResult = BackupImportResult

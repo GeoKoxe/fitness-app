@@ -10,6 +10,7 @@ from app.api.nutrition_backup import router as nutrition_backup_router
 from app.api.nutrition_goals import router as nutrition_goals_router
 from app.api.profile import router as profile_router
 from app.api.recipes import router as recipes_router
+from app.api.system_backup import router as system_backup_router
 from app.api.workouts import router as workouts_router
 
 router = APIRouter()
@@ -20,6 +21,7 @@ router.include_router(measurements_router, prefix="/api")
 router.include_router(foods_router, prefix="/api")
 router.include_router(meal_logs_router, prefix="/api")
 router.include_router(nutrition_backup_router, prefix="/api")
+router.include_router(system_backup_router, prefix="/api")
 router.include_router(nutrition_goals_router, prefix="/api")
 router.include_router(recipes_router, prefix="/api")
 router.include_router(meal_plans_router, prefix="/api")
