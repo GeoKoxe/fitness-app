@@ -10,6 +10,9 @@ type WorkoutSubTab = 'catalogue' | 'profile' | 'planner' | 'log' | 'progress'
 
 export function WorkoutDashboard() {
   const [activeSubTab, setActiveSubTab] = useState<WorkoutSubTab>('catalogue')
+  const [hasUnsavedWorkoutChanges, setHasUnsavedWorkoutChanges] = useState(false)
+  const [pendingSubTab, setPendingSubTab] = useState<WorkoutSubTab | null>(null)
+  const [showNavigationConfirm, setShowNavigationConfirm] = useState(false)
 
   const handleStartPlannedSession = async (plannedSessionId: number) => {
     try {
@@ -20,6 +23,19 @@ export function WorkoutDashboard() {
     } catch {
       setActiveSubTab('log')
     }
+  }
+
+  const handleSubTabClick = (targetTab: WorkoutSubTab) => {
+    if (targetTab === activeSubTab) return
+
+    // If active workout runner has unsaved changes and user is on the log tab
+    if (activeSubTab === 'log' && hasUnsavedWorkoutChanges) {
+      setPendingSubTab(targetTab)
+      setShowNavigationConfirm(true)
+      return
+    }
+
+    setActiveSubTab(targetTab)
   }
 
   return (
@@ -38,7 +54,7 @@ export function WorkoutDashboard() {
         <nav aria-label="Workout navigation" className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
           <button
             type="button"
-            onClick={() => setActiveSubTab('catalogue')}
+            onClick={() => handleSubTabClick('catalogue')}
             className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'catalogue'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
@@ -53,7 +69,7 @@ export function WorkoutDashboard() {
 
           <button
             type="button"
-            onClick={() => setActiveSubTab('profile')}
+            onClick={() => handleSubTabClick('profile')}
             className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'profile'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
@@ -68,7 +84,7 @@ export function WorkoutDashboard() {
 
           <button
             type="button"
-            onClick={() => setActiveSubTab('planner')}
+            onClick={() => handleSubTabClick('planner')}
             className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'planner'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
@@ -83,7 +99,7 @@ export function WorkoutDashboard() {
 
           <button
             type="button"
-            onClick={() => setActiveSubTab('log')}
+            onClick={() => handleSubTabClick('log')}
             className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'log'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
@@ -98,7 +114,7 @@ export function WorkoutDashboard() {
 
           <button
             type="button"
-            onClick={() => setActiveSubTab('progress')}
+            onClick={() => handleSubTabClick('progress')}
             className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === 'progress'
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
@@ -123,11 +139,56 @@ export function WorkoutDashboard() {
       )}
 
       {activeSubTab === 'log' && (
-        <WorkoutLogView onNavigateToPlanner={() => setActiveSubTab('planner')} />
+        <WorkoutLogView
+          onNavigateToPlanner={() => handleSubTabClick('planner')}
+          onUnsavedChangesChange={setHasUnsavedWorkoutChanges}
+        />
       )}
 
       {activeSubTab === 'progress' && <WorkoutAnalyticsView />}
+
+      {/* Unsaved Workout Changes Modal */}
+      {showNavigationConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              Unsaved Workout Changes
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              You have unsaved workout changes. Leaving the workout runner tab may delay saving or require restoring from your local draft. Are you sure you want to navigate away?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNavigationConfirm(false)
+                  setPendingSubTab(null)
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Stay on Workout
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (pendingSubTab) {
+                    setActiveSubTab(pendingSubTab)
+                  }
+                  setShowNavigationConfirm(false)
+                  setPendingSubTab(null)
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-xs cursor-pointer"
+              >
+                Leave Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-

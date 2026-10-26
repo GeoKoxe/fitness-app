@@ -7,10 +7,14 @@ import { workoutExecutionService } from '../../services/workoutExecutionService'
 import { ActiveWorkoutSessionRunner } from './ActiveWorkoutSessionRunner'
 
 interface WorkoutLogViewProps {
-  onNavigateToPlanner?: () => void
+  onUnsavedChangesChange?: ((isDirty: boolean) => void) | undefined
+  onNavigateToPlanner?: (() => void) | undefined
 }
 
-export function WorkoutLogView({ onNavigateToPlanner }: WorkoutLogViewProps) {
+export function WorkoutLogView({
+  onNavigateToPlanner,
+  onUnsavedChangesChange,
+}: WorkoutLogViewProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,6 +60,15 @@ export function WorkoutLogView({ onNavigateToPlanner }: WorkoutLogViewProps) {
       })
       setActiveSession(newSession)
     } catch (err) {
+      try {
+        const active = await workoutExecutionService.getActiveSession()
+        if (active) {
+          setActiveSession(active)
+          return
+        }
+      } catch {
+        // Fall back to original error
+      }
       setError(err instanceof Error ? err.message : 'Failed to start workout.')
     } finally {
       setStartingSession(false)
@@ -86,6 +99,7 @@ export function WorkoutLogView({ onNavigateToPlanner }: WorkoutLogViewProps) {
     return (
       <ActiveWorkoutSessionRunner
         initialSession={activeSession}
+        onUnsavedChangesChange={onUnsavedChangesChange}
         onFinishOrCancel={() => {
           setActiveSession(null)
           void loadData()

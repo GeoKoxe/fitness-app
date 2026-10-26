@@ -1,48 +1,268 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   LoggedExercise,
   WorkoutSessionLog,
 } from '../../types/workoutLog'
 import { workoutExecutionService } from '../../services/workoutExecutionService'
+import {
+  calculateElapsedSeconds,
+  clearWorkoutDraft,
+  formatDuration,
+  loadWorkoutDraft,
+  saveWorkoutDraft,
+  type WorkoutDraftTimerState,
+} from './workoutDraftStorage'
 
 interface ActiveWorkoutSessionRunnerProps {
   initialSession: WorkoutSessionLog
   onFinishOrCancel: () => void
+  onUnsavedChangesChange?: ((isDirty: boolean) => void) | undefined
 }
+
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export function ActiveWorkoutSessionRunner({
   initialSession,
   onFinishOrCancel,
+  onUnsavedChangesChange,
 }: ActiveWorkoutSessionRunnerProps) {
-  const [session, setSession] = useState<WorkoutSessionLog>(initialSession)
-  const [duration, setDuration] = useState<number>(initialSession.duration_seconds || 0)
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true)
+  // Check for local draft on initial mount
+  const initialDraft = useRef(loadWorkoutDraft(initialSession.id)).current
 
-  const [saving, setSaving] = useState(false)
+  const [session, setSession] = useState<WorkoutSessionLog>(() => {
+    if (initialDraft && initialDraft.exercises && initialDraft.exercises.length > 0) {
+      return {
+        ...initialSession,
+        exercises: initialDraft.exercises,
+        notes: initialDraft.notes ?? initialSession.notes,
+      }
+    }
+    return initialSession
+  })
+
+  const [timerState, setTimerState] = useState<WorkoutDraftTimerState>(() => {
+    if (initialDraft && initialDraft.timerState) {
+      return initialDraft.timerState
+    }
+    return {
+      isPaused: false,
+      accumulatedSeconds: initialSession.duration_seconds || 0,
+      intervalStartedAt: Date.now(),
+    }
+  })
+
+  const [duration, setDuration] = useState<number>(() => {
+    if (initialDraft && initialDraft.timerState) {
+      return calculateElapsedSeconds(initialDraft.timerState)
+    }
+    return initialSession.duration_seconds || 0
+  })
+
+  const [isDirty, setIsDirty] = useState<boolean>(() => {
+    return initialDraft ? Boolean(initialDraft.isDirty) : false
+  })
+
+  const [recoveredFromDraft, setRecoveredFromDraft] = useState<boolean>(() => {
+    return Boolean(initialDraft && initialDraft.isDirty)
+  })
+
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(() => {
+    return initialDraft && initialDraft.isDirty ? 'idle' : 'saved'
+  })
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
+  const [, setLastSavedAt] = useState<Date | null>(null)
+
   const [actionLoading, setActionLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Dialogs
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
 
-  // Live workout timer
-  useEffect(() => {
-    if (!isTimerRunning) return
-    const timer = setInterval(() => {
-      setDuration((prev) => prev + 1)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [isTimerRunning])
+  // Refs for race-condition and debounce management
+  const sessionRef = useRef(session)
+  sessionRef.current = session
 
-  const formatTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60)
-    const secs = totalSeconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  const durationRef = useRef(duration)
+  durationRef.current = duration
+
+  const timerStateRef = useRef(timerState)
+  timerStateRef.current = timerState
+
+  const isDirtyRef = useRef(isDirty)
+  isDirtyRef.current = isDirty
+
+  const inFlightPromiseRef = useRef<Promise<boolean> | null>(null)
+  const queuedSaveRef = useRef<boolean>(false)
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Notify parent of dirty state changes
+  useEffect(() => {
+    onUnsavedChangesChange?.(isDirty)
+  }, [isDirty, onUnsavedChangesChange])
+
+  // Synchronously update local draft in localStorage
+  const updateDraft = useCallback(
+    (
+      currentSession: WorkoutSessionLog,
+      currentDuration: number,
+      currentTimer: WorkoutDraftTimerState,
+      dirty: boolean
+    ) => {
+      saveWorkoutDraft({
+        version: 1,
+        sessionId: currentSession.id,
+        updatedAt: new Date().toISOString(),
+        duration: currentDuration,
+        timerState: currentTimer,
+        notes: currentSession.notes ?? null,
+        exercises: currentSession.exercises,
+        isDirty: dirty,
+      })
+    },
+    []
+  )
+
+  // Core save executor with in-flight protection and queueing
+  const executeSave = useCallback(async (): Promise<boolean> => {
+    // If a save is already in-flight, queue the latest state for subsequent save
+    if (inFlightPromiseRef.current) {
+      queuedSaveRef.current = true
+      return false
+    }
+
+    setSaveStatus('saving')
+    setSaveErrorMessage(null)
+
+    const payload = {
+      session_name: sessionRef.current.session_name,
+      notes: sessionRef.current.notes ?? undefined,
+      duration_seconds: durationRef.current,
+      exercises: sessionRef.current.exercises,
+    }
+
+    const savePromise = (async (): Promise<boolean> => {
+      try {
+        const updated = await workoutExecutionService.updateSession(
+          sessionRef.current.id,
+          payload
+        )
+        setLastSavedAt(new Date())
+
+        // If no edits occurred while save was in flight, mark clean
+        if (!queuedSaveRef.current) {
+          isDirtyRef.current = false
+          setIsDirty(false)
+          setSaveStatus('saved')
+          updateDraft(updated, durationRef.current, timerStateRef.current, false)
+        }
+        return true
+      } catch (err) {
+        setSaveStatus('error')
+        const message = err instanceof Error ? err.message : 'Failed to save progress.'
+        setSaveErrorMessage(message)
+        return false
+      } finally {
+        inFlightPromiseRef.current = null
+        // If changes were made while this save was executing, run queued save now
+        if (queuedSaveRef.current) {
+          queuedSaveRef.current = false
+          void executeSave()
+        }
+      }
+    })()
+
+    inFlightPromiseRef.current = savePromise
+    return savePromise
+  }, [updateDraft])
+
+  // Debounce autosave helper for keystrokes
+  const scheduleDebouncedAutosave = useCallback(() => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+    }
+    autosaveTimerRef.current = setTimeout(() => {
+      void executeSave()
+    }, 1200)
+  }, [executeSave])
+
+  // Immediate save for boundaries (set completed/skipped, set added, explicit button)
+  const triggerImmediateSave = useCallback(async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+    return executeSave()
+  }, [executeSave])
+
+  // Live timer tick
+  useEffect(() => {
+    if (timerState.isPaused) return
+
+    const timer = setInterval(() => {
+      const current = calculateElapsedSeconds(timerStateRef.current)
+      setDuration(current)
+      durationRef.current = current
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [timerState.isPaused])
+
+  // Pause / Resume toggle
+  const handleToggleTimer = () => {
+    if (timerState.isPaused) {
+      // Resume
+      const newTimer: WorkoutDraftTimerState = {
+        isPaused: false,
+        accumulatedSeconds: timerState.accumulatedSeconds,
+        intervalStartedAt: Date.now(),
+      }
+      setTimerState(newTimer)
+      timerStateRef.current = newTimer
+      updateDraft(sessionRef.current, durationRef.current, newTimer, isDirtyRef.current)
+    } else {
+      // Pause
+      const currentElapsed = calculateElapsedSeconds(timerStateRef.current)
+      const newTimer: WorkoutDraftTimerState = {
+        isPaused: true,
+        accumulatedSeconds: currentElapsed,
+        intervalStartedAt: null,
+      }
+      setTimerState(newTimer)
+      timerStateRef.current = newTimer
+      setDuration(currentElapsed)
+      durationRef.current = currentElapsed
+      updateDraft(sessionRef.current, currentElapsed, newTimer, isDirtyRef.current)
+      // Save duration on pause
+      void triggerImmediateSave()
+    }
   }
 
-  // Calculate completion statistics
+  // Warning on window close / page reload if dirty
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty || saveStatus === 'saving' || saveStatus === 'error') {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [isDirty, saveStatus])
+
+  // Clean up autosave timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Completion statistics
   const totalSets = session.exercises.reduce((acc, ex) => acc + ex.sets.length, 0)
   const completedSets = session.exercises.reduce(
     (acc, ex) => acc + ex.sets.filter((s) => s.is_completed && !s.is_skipped).length,
@@ -55,120 +275,148 @@ export function ActiveWorkoutSessionRunner({
   const pendingSets = totalSets - completedSets - skippedSets
   const progressPercent = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0
 
-  // Mutate set field locally
+  // Update set field
   const handleUpdateSet = (
     exOrder: number,
     setNumber: number,
     field: 'weight_kg' | 'reps' | 'is_completed' | 'is_skipped' | 'notes',
     value: unknown
   ) => {
-    setError(null)
-    setSession((prev) => {
-      const updatedExercises = prev.exercises.map((ex) => {
-        if (ex.order_in_session !== exOrder) return ex
+    setSaveErrorMessage(null)
+    const isBoundaryAction = field === 'is_completed' || field === 'is_skipped'
 
-        const updatedSets = ex.sets.map((s) => {
-          if (s.set_number !== setNumber) return s
+    const updatedExercises = sessionRef.current.exercises.map((ex) => {
+      if (ex.order_in_session !== exOrder) return ex
 
-          if (field === 'is_completed') {
-            const completed = Boolean(value)
-            return {
-              ...s,
-              is_completed: completed,
-              is_skipped: completed ? false : s.is_skipped,
-            }
+      const updatedSets = ex.sets.map((s) => {
+        if (s.set_number !== setNumber) return s
+
+        if (field === 'is_completed') {
+          const completed = Boolean(value)
+          return {
+            ...s,
+            is_completed: completed,
+            is_skipped: completed ? false : s.is_skipped,
           }
+        }
 
-          if (field === 'is_skipped') {
-            const skipped = Boolean(value)
-            return {
-              ...s,
-              is_skipped: skipped,
-              is_completed: skipped ? false : s.is_completed,
-            }
+        if (field === 'is_skipped') {
+          const skipped = Boolean(value)
+          return {
+            ...s,
+            is_skipped: skipped,
+            is_completed: skipped ? false : s.is_completed,
           }
+        }
 
-          return { ...s, [field]: value }
-        })
-
-        return { ...ex, sets: updatedSets }
+        return { ...s, [field]: value }
       })
 
-      return { ...prev, exercises: updatedExercises }
+      return { ...ex, sets: updatedSets }
     })
+
+    const newSession = { ...sessionRef.current, exercises: updatedExercises }
+    sessionRef.current = newSession
+    setSession(newSession)
+
+    isDirtyRef.current = true
+    setIsDirty(true)
+    updateDraft(newSession, durationRef.current, timerStateRef.current, true)
+
+    if (isBoundaryAction) {
+      void triggerImmediateSave()
+    } else {
+      scheduleDebouncedAutosave()
+    }
   }
 
   // Add set to exercise
   const handleAddSet = (exOrder: number) => {
-    setSession((prev) => {
-      const updatedExercises = prev.exercises.map((ex) => {
-        if (ex.order_in_session !== exOrder) return ex
-        const nextSetNum = ex.sets.length + 1
-        return {
-          ...ex,
-          sets: [
-            ...ex.sets,
-            {
-              set_number: nextSetNum,
-              weight_kg: ex.sets[ex.sets.length - 1]?.weight_kg ?? null,
-              reps: null,
-              is_completed: false,
-              is_skipped: false,
-            },
-          ],
-        }
-      })
-      return { ...prev, exercises: updatedExercises }
+    const updatedExercises = sessionRef.current.exercises.map((ex) => {
+      if (ex.order_in_session !== exOrder) return ex
+      const nextSetNum = ex.sets.length + 1
+      return {
+        ...ex,
+        sets: [
+          ...ex.sets,
+          {
+            set_number: nextSetNum,
+            weight_kg: ex.sets[ex.sets.length - 1]?.weight_kg ?? null,
+            reps: null,
+            is_completed: false,
+            is_skipped: false,
+          },
+        ],
+      }
     })
+
+    const newSession = { ...sessionRef.current, exercises: updatedExercises }
+    sessionRef.current = newSession
+    setSession(newSession)
+
+    isDirtyRef.current = true
+    setIsDirty(true)
+    updateDraft(newSession, durationRef.current, timerStateRef.current, true)
+    void triggerImmediateSave()
   }
 
   // Update exercise notes
   const handleExerciseNotesChange = (exOrder: number, notes: string) => {
-    setSession((prev) => ({
-      ...prev,
-      exercises: prev.exercises.map((ex) =>
-        ex.order_in_session === exOrder ? { ...ex, notes } : ex
-      ),
-    }))
+    const updatedExercises = sessionRef.current.exercises.map((ex) =>
+      ex.order_in_session === exOrder ? { ...ex, notes } : ex
+    )
+    const newSession = { ...sessionRef.current, exercises: updatedExercises }
+    sessionRef.current = newSession
+    setSession(newSession)
+
+    isDirtyRef.current = true
+    setIsDirty(true)
+    updateDraft(newSession, durationRef.current, timerStateRef.current, true)
+    scheduleDebouncedAutosave()
   }
 
-  // Save partial progress
+  // Explicit Save Progress button click
   const handleSaveProgress = async (silent: boolean = false) => {
-    setError(null)
-    setSaving(true)
-    try {
-      const updated = await workoutExecutionService.updateSession(session.id, {
-        session_name: session.session_name,
-        notes: session.notes ?? undefined,
-        duration_seconds: duration,
-        exercises: session.exercises,
-      })
-      setSession(updated)
-      if (!silent) {
-        setToastMessage('Workout progress saved!')
-        setTimeout(() => setToastMessage(null), 3000)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save progress.')
-    } finally {
-      setSaving(false)
+    const success = await triggerImmediateSave()
+    if (success && !silent) {
+      setToastMessage('Workout progress saved!')
+      setTimeout(() => setToastMessage(null), 3000)
     }
   }
 
   // Complete session
   const handleCompleteWorkout = async () => {
+    if (actionLoading) return
     setActionLoading(true)
-    setError(null)
+    setSaveErrorMessage(null)
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+
     try {
-      // Save current state first
+      // If a save was in flight, wait for it
+      if (inFlightPromiseRef.current) {
+        await inFlightPromiseRef.current
+      }
+
+      // Final state sync to backend
       await workoutExecutionService.updateSession(session.id, {
-        duration_seconds: duration,
-        exercises: session.exercises,
+        session_name: sessionRef.current.session_name,
+        notes: sessionRef.current.notes ?? undefined,
+        duration_seconds: durationRef.current,
+        exercises: sessionRef.current.exercises,
       })
+
+      // Complete session
       await workoutExecutionService.completeSession(session.id)
+
+      // Clean up local draft
+      clearWorkoutDraft(session.id)
+      onUnsavedChangesChange?.(false)
       onFinishOrCancel()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete workout.')
+      setSaveErrorMessage(err instanceof Error ? err.message : 'Failed to complete workout.')
       setActionLoading(false)
       setShowCompleteConfirm(false)
     }
@@ -176,13 +424,21 @@ export function ActiveWorkoutSessionRunner({
 
   // Cancel session
   const handleCancelWorkout = async () => {
+    if (actionLoading) return
     setActionLoading(true)
-    setError(null)
+    setSaveErrorMessage(null)
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+
     try {
       await workoutExecutionService.cancelSession(session.id)
+      clearWorkoutDraft(session.id)
+      onUnsavedChangesChange?.(false)
       onFinishOrCancel()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel workout.')
+      setSaveErrorMessage(err instanceof Error ? err.message : 'Failed to cancel workout.')
       setActionLoading(false)
       setShowCancelConfirm(false)
     }
@@ -211,33 +467,88 @@ export function ActiveWorkoutSessionRunner({
           </div>
 
           {/* Timer and Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Timer */}
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <span className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100">
-                {formatTimer(duration)}
+              <span
+                data-testid="workout-timer-display"
+                className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100"
+              >
+                {formatDuration(duration)}
               </span>
               <button
                 type="button"
-                onClick={() => setIsTimerRunning((r) => !r)}
-                className="text-xs font-semibold px-2 py-0.5 rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs hover:bg-slate-50 transition"
+                onClick={handleToggleTimer}
+                aria-label={timerState.isPaused ? 'Resume workout timer' : 'Pause workout timer'}
+                className="text-xs font-semibold px-2 py-0.5 rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
               >
-                {isTimerRunning ? 'Pause' : 'Resume'}
+                {timerState.isPaused ? 'Resume' : 'Pause'}
               </button>
+            </div>
+
+            {/* Autosave Status Indicator */}
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs font-medium"
+              data-testid="save-status-container"
+            >
+              {saveStatus === 'saving' && (
+                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span>Saving...</span>
+                </span>
+              )}
+
+              {saveStatus === 'saved' && (
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>All changes saved</span>
+                </span>
+              )}
+
+              {saveStatus === 'error' && (
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>Save failed</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void triggerImmediateSave()}
+                    className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 hover:bg-rose-200 text-rose-800 dark:bg-rose-900/60 dark:hover:bg-rose-900 dark:text-rose-200 transition cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {saveStatus === 'idle' && (
+                <span className="text-slate-400 text-xs">
+                  {isDirty ? 'Unsaved changes' : 'Ready'}
+                </span>
+              )}
             </div>
 
             <button
               type="button"
-              onClick={() => handleSaveProgress(false)}
-              disabled={saving}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+              onClick={() => void handleSaveProgress(false)}
+              disabled={saveStatus === 'saving'}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
             >
-              {saving ? 'Saving...' : 'Save Progress'}
+              Save Progress
             </button>
 
             <button
               type="button"
               onClick={() => setShowCompleteConfirm(true)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer"
+              disabled={actionLoading}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer disabled:opacity-50"
             >
               Complete Workout
             </button>
@@ -245,7 +556,8 @@ export function ActiveWorkoutSessionRunner({
             <button
               type="button"
               onClick={() => setShowCancelConfirm(true)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+              disabled={actionLoading}
+              className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
@@ -268,10 +580,32 @@ export function ActiveWorkoutSessionRunner({
           </div>
         </div>
 
-        {/* Messages */}
-        {error && (
+        {/* Local Draft Recovery Notification Banner */}
+        {recoveredFromDraft && (
+          <div
+            role="status"
+            className="mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Recovered unsaved workout progress from local draft.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRecoveredFromDraft(false)}
+              className="text-xs font-semibold hover:underline text-blue-800 dark:text-blue-200"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Error and Toast Messages */}
+        {saveErrorMessage && (
           <div className="mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
-            {error}
+            {saveErrorMessage}
           </div>
         )}
         {toastMessage && (
@@ -317,7 +651,7 @@ export function ActiveWorkoutSessionRunner({
               <button
                 type="button"
                 onClick={() => handleAddSet(ex.order_in_session)}
-                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 self-end sm:self-center"
+                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 self-end sm:self-center cursor-pointer"
               >
                 + Add Set
               </button>
@@ -395,7 +729,7 @@ export function ActiveWorkoutSessionRunner({
                             !set.is_completed
                           )
                         }}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
                           set.is_completed
                             ? 'bg-emerald-600 text-white shadow-2xs'
                             : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
@@ -415,7 +749,7 @@ export function ActiveWorkoutSessionRunner({
                             !set.is_skipped
                           )
                         }}
-                        className={`px-2 py-1 rounded-lg text-xs font-medium transition ${
+                        className={`px-2 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
                           set.is_skipped
                             ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200'
                             : 'text-slate-400 hover:text-slate-600'
@@ -459,7 +793,7 @@ export function ActiveWorkoutSessionRunner({
               <button
                 type="button"
                 onClick={() => setShowCancelConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 Keep Working Out
               </button>
@@ -467,7 +801,7 @@ export function ActiveWorkoutSessionRunner({
                 type="button"
                 onClick={handleCancelWorkout}
                 disabled={actionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-xs"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-xs cursor-pointer disabled:opacity-50"
               >
                 {actionLoading ? 'Cancelling...' : 'Confirm Cancel'}
               </button>
@@ -495,7 +829,7 @@ export function ActiveWorkoutSessionRunner({
               <button
                 type="button"
                 onClick={() => setShowCompleteConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 Continue Workout
               </button>
@@ -503,7 +837,7 @@ export function ActiveWorkoutSessionRunner({
                 type="button"
                 onClick={handleCompleteWorkout}
                 disabled={actionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer disabled:opacity-50"
               >
                 {actionLoading ? 'Saving...' : 'Finish Workout'}
               </button>
@@ -514,4 +848,3 @@ export function ActiveWorkoutSessionRunner({
     </div>
   )
 }
-

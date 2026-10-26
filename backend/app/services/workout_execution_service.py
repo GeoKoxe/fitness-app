@@ -385,6 +385,9 @@ class WorkoutExecutionService:
                 detail="Cannot cancel an already completed workout session.",
             )
 
+        if session_log.status == "cancelled":
+            return WorkoutSessionLogResponse.model_validate(session_log)
+
         session_log.status = "cancelled"
         session_log.completed_at = datetime.now()
         saved = workout_log_repository.save(db, session_log)
