@@ -122,6 +122,7 @@ async def test_save_sets_bodyweight_and_validation(client: AsyncClient):
     bad_res1 = await client.put(
         f"/api/workouts/sessions/{session_id}",
         json={
+            "client_version": 1,
             "exercises": [
                 {
                     "order_in_session": 1,
@@ -136,6 +137,7 @@ async def test_save_sets_bodyweight_and_validation(client: AsyncClient):
     bad_res2 = await client.put(
         f"/api/workouts/sessions/{session_id}",
         json={
+            "client_version": 1,
             "exercises": [
                 {
                     "order_in_session": 1,
@@ -148,6 +150,7 @@ async def test_save_sets_bodyweight_and_validation(client: AsyncClient):
 
     # 3. Valid update with bodyweight (None weight) and weighted sets
     valid_update = {
+        "client_version": 1,
         "duration_seconds": 1200,
         "notes": "Solid session feeling energetic",
         "exercises": [
@@ -261,6 +264,7 @@ async def test_historical_log_readable_after_plan_regeneration(client: AsyncClie
     await client.put(
         f"/api/workouts/sessions/{log_id}",
         json={
+            "client_version": 1,
             "duration_seconds": 2400,
             "exercises": [
                 {

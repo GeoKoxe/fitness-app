@@ -86,6 +86,24 @@ class WorkoutSessionLogUpdate(BaseModel):
     notes: Optional[str] = None
     duration_seconds: Optional[int] = Field(None, ge=0)
     exercises: Optional[List[LoggedExerciseUpdate]] = None
+    client_version: Optional[int] = Field(
+        None, description="Expected current session version for optimistic concurrency control"
+    )
+    force_overwrite: bool = Field(
+        False, description="Explicit user action to bypass version check and overwrite"
+    )
+    client_updated_at: Optional[datetime] = Field(
+        None, description="Optional client updated_at timestamp (legacy fallback)"
+    )
+
+
+class WorkoutSessionTransitionRequest(BaseModel):
+    client_version: Optional[int] = Field(
+        None, description="Expected current session version for lifecycle state transition"
+    )
+    force_overwrite: bool = Field(
+        False, description="Explicit user action to bypass version check and force transition"
+    )
 
 
 class WorkoutSessionLogResponse(BaseModel):
@@ -102,6 +120,7 @@ class WorkoutSessionLogResponse(BaseModel):
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    version: int = 1
     exercises: List[LoggedExerciseResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
@@ -121,6 +140,7 @@ class WorkoutSessionLogSummaryResponse(BaseModel):
     total_exercises: int
     completed_sets: int
     created_at: datetime
+    version: int = 1
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -29,23 +29,76 @@ export function loadWorkoutDraft(sessionId: number): WorkoutSessionDraft | null 
     const raw = localStorage.getItem(key)
     if (!raw) return null
     const parsed = JSON.parse(raw) as WorkoutSessionDraft
+
+    // Verify draft ownership and version
     if (
-      parsed &&
-      parsed.version === 1 &&
-      parsed.sessionId === sessionId &&
-      Array.isArray(parsed.exercises) &&
-      typeof parsed.duration === 'number' &&
-      parsed.timerState &&
-      typeof parsed.timerState.isPaused === 'boolean'
+      !parsed ||
+      parsed.version !== 1 ||
+      parsed.sessionId !== sessionId ||
+      !Array.isArray(parsed.exercises)
     ) {
-      return parsed
+      clearWorkoutDraft(sessionId)
+      return null
     }
-    // Corrupted or mismatched draft
-    clearWorkoutDraft(sessionId)
+
+    // Sanitize duration
+    const safeDuration =
+      typeof parsed.duration === 'number' && Number.isFinite(parsed.duration) && parsed.duration >= 0
+        ? Math.floor(parsed.duration)
+        : 0
+
+    // Sanitize and align timerState
+    let safeTimerState: WorkoutDraftTimerState
+    if (parsed.timerState && typeof parsed.timerState === 'object') {
+      const isPaused = Boolean(parsed.timerState.isPaused)
+      const accumulatedSeconds =
+        typeof parsed.timerState.accumulatedSeconds === 'number' &&
+        Number.isFinite(parsed.timerState.accumulatedSeconds) &&
+        parsed.timerState.accumulatedSeconds >= 0
+          ? Math.floor(parsed.timerState.accumulatedSeconds)
+          : safeDuration
+
+      let intervalStartedAt: number | null = null
+      if (!isPaused) {
+        if (
+          typeof parsed.timerState.intervalStartedAt === 'number' &&
+          Number.isFinite(parsed.timerState.intervalStartedAt)
+        ) {
+          // If future timestamp (clock skew), clamp to now
+          intervalStartedAt = Math.min(Date.now(), parsed.timerState.intervalStartedAt)
+        } else {
+          // Fallback to now if missing on running timer
+          intervalStartedAt = Date.now()
+        }
+      }
+
+      safeTimerState = {
+        isPaused,
+        accumulatedSeconds,
+        intervalStartedAt,
+      }
+    } else {
+      safeTimerState = {
+        isPaused: false,
+        accumulatedSeconds: safeDuration,
+        intervalStartedAt: Date.now(),
+      }
+    }
+
+    return {
+      version: 1,
+      sessionId,
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+      duration: safeDuration,
+      timerState: safeTimerState,
+      notes: typeof parsed.notes === 'string' ? parsed.notes : null,
+      exercises: parsed.exercises,
+      isDirty: Boolean(parsed.isDirty),
+    }
   } catch {
     clearWorkoutDraft(sessionId)
+    return null
   }
-  return null
 }
 
 export function saveWorkoutDraft(draft: WorkoutSessionDraft): void {
@@ -70,11 +123,24 @@ export function calculateElapsedSeconds(
   timerState: WorkoutDraftTimerState,
   nowMs: number = Date.now()
 ): number {
+  const accumulated =
+    typeof timerState.accumulatedSeconds === 'number' &&
+    Number.isFinite(timerState.accumulatedSeconds) &&
+    timerState.accumulatedSeconds >= 0
+      ? Math.floor(timerState.accumulatedSeconds)
+      : 0
+
   if (timerState.isPaused || timerState.intervalStartedAt === null) {
-    return Math.max(0, timerState.accumulatedSeconds)
+    return accumulated
   }
-  const runningElapsed = Math.max(0, Math.floor((nowMs - timerState.intervalStartedAt) / 1000))
-  return Math.max(0, timerState.accumulatedSeconds + runningElapsed)
+
+  // Guard against clock skew where nowMs is before intervalStartedAt
+  if (nowMs < timerState.intervalStartedAt) {
+    return accumulated
+  }
+
+  const runningElapsed = Math.floor((nowMs - timerState.intervalStartedAt) / 1000)
+  return accumulated + Math.max(0, runningElapsed)
 }
 
 export function formatDuration(totalSeconds: number): string {
@@ -87,4 +153,3 @@ export function formatDuration(totalSeconds: number): string {
   }
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
-

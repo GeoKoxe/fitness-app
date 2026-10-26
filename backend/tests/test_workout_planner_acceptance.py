@@ -426,6 +426,7 @@ async def test_end_to_end_acceptance_workflow(client: AsyncClient):
     # Log completed sets for first exercise
     first_logged_ex = log["exercises"][0]
     update_payload = {
+        "client_version": 1,
         "duration_seconds": 1800,
         "exercises": [
             {

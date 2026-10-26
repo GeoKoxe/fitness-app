@@ -42,6 +42,7 @@ export interface WorkoutSessionLog {
   notes: string | null
   created_at: string
   updated_at: string
+  version?: number | undefined
   exercises: LoggedExercise[]
 }
 
@@ -59,6 +60,7 @@ export interface WorkoutSessionLogSummary {
   total_exercises: number
   completed_sets: number
   created_at: string
+  version?: number | undefined
 }
 
 export interface WorkoutSessionStartRequest {
@@ -72,5 +74,12 @@ export interface WorkoutSessionLogUpdate {
   notes?: string | undefined
   duration_seconds?: number | undefined
   exercises?: LoggedExercise[] | undefined
+  client_updated_at?: string | undefined
+  client_version?: number | undefined
+  force_overwrite?: boolean | undefined
 }
 
+export interface WorkoutSessionTransitionRequest {
+  client_version?: number | undefined
+  force_overwrite?: boolean | undefined
+}

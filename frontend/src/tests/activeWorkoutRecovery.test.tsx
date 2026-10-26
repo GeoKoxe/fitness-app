@@ -2,9 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActiveWorkoutSessionRunner } from '../features/workouts/ActiveWorkoutSessionRunner'
 import { WorkoutDashboard } from '../features/workouts/WorkoutDashboard'
-import { WorkoutLogView } from '../features/workouts/WorkoutLogView'
 import {
-  clearWorkoutDraft,
   getDraftKey,
   loadWorkoutDraft,
   saveWorkoutDraft,
@@ -92,13 +90,14 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.mocked(workoutExecutionService.getActiveSession).mockResolvedValue(mockActiveSession)
     vi.mocked(workoutExecutionService.listSessions).mockResolvedValue([])
     vi.mocked(workoutExecutionService.updateSession).mockImplementation(
       async (_id, update) => ({
         ...mockActiveSession,
         duration_seconds: update.duration_seconds ?? mockActiveSession.duration_seconds,
-        exercises: (update.exercises as any) ?? mockActiveSession.exercises,
+        exercises: (update.exercises as unknown as LoggedExercise[]) ?? mockActiveSession.exercises,
       })
     )
     vi.mocked(workoutExecutionService.completeSession).mockResolvedValue({
@@ -227,17 +226,17 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
   })
 
   it('Scenario 5: In-flight save protection queues subsequent save with latest changes', async () => {
-    let resolveFirstUpdate: (value: any) => void = () => {}
-    const firstUpdatePromise = new Promise((resolve) => {
+    let resolveFirstUpdate: (value: WorkoutSessionLog) => void = () => {}
+    const firstUpdatePromise = new Promise<WorkoutSessionLog>((resolve) => {
       resolveFirstUpdate = resolve
     })
 
     // First call hangs until manually resolved
     vi.mocked(workoutExecutionService.updateSession)
-      .mockImplementationOnce(() => firstUpdatePromise as any)
+      .mockImplementationOnce(() => firstUpdatePromise)
       .mockImplementation(async (_id, update) => ({
         ...mockActiveSession,
-        exercises: (update.exercises as any) ?? mockActiveSession.exercises,
+        exercises: (update.exercises as unknown as LoggedExercise[]) ?? mockActiveSession.exercises,
       }))
 
     render(
@@ -277,11 +276,11 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
   })
 
   it('Scenario 6: Save status indicator transitions between saving and saved', async () => {
-    let resolveSave: (value: any) => void = () => {}
-    const savePromise = new Promise((resolve) => {
+    let resolveSave: (value: WorkoutSessionLog) => void = () => {}
+    const savePromise = new Promise<WorkoutSessionLog>((resolve) => {
       resolveSave = resolve
     })
-    vi.mocked(workoutExecutionService.updateSession).mockImplementationOnce(() => savePromise as any)
+    vi.mocked(workoutExecutionService.updateSession).mockImplementationOnce(() => savePromise)
 
     render(
       <ActiveWorkoutSessionRunner
@@ -438,7 +437,7 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
       fireEvent.click(finishBtn)
     })
 
-    expect(workoutExecutionService.completeSession).toHaveBeenCalledWith(42)
+    expect(workoutExecutionService.completeSession).toHaveBeenCalledWith(42, expect.objectContaining({ client_version: expect.any(Number) }))
     // Draft must be cleaned up from localStorage
     expect(loadWorkoutDraft(42)).toBeNull()
   })
@@ -470,7 +469,7 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
       fireEvent.click(confirmCancelBtn)
     })
 
-    expect(workoutExecutionService.cancelSession).toHaveBeenCalledWith(42)
+    expect(workoutExecutionService.cancelSession).toHaveBeenCalledWith(42, expect.objectContaining({ client_version: expect.any(Number) }))
     // Draft must be cleaned up from localStorage
     expect(loadWorkoutDraft(42)).toBeNull()
   })
@@ -505,7 +504,7 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
     })
 
     // Dispatch beforeunload event
-    const event = new Event('beforeunload', { cancelable: true }) as any
+    const event = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent
     window.dispatchEvent(event)
 
     // In jsdom, returnValue is populated when dirty
@@ -596,12 +595,12 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
   })
 
   it('Scenario 20: Double-click prevention on complete and cancel buttons', async () => {
-    let resolveComplete: (value: any) => void = () => {}
-    const completePromise = new Promise((resolve) => {
+    let resolveComplete: (value: WorkoutSessionLog) => void = () => {}
+    const completePromise = new Promise<WorkoutSessionLog>((resolve) => {
       resolveComplete = resolve
     })
     vi.mocked(workoutExecutionService.completeSession).mockImplementationOnce(
-      () => completePromise as any
+      () => completePromise
     )
 
     render(
@@ -632,5 +631,380 @@ describe('Batch 3 — Workout Execution Recovery, Autosave & Safety', () => {
     await act(async () => {
       resolveComplete(mockActiveSession)
     })
+  })
+
+  it('Batch 3.1: Cancelling workout persists final duration before cancel endpoint', async () => {
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={mockActiveSession}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Open Cancel modal and confirm
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const confirmCancelBtn = screen.getByRole('button', { name: 'Confirm Cancel' })
+    await act(async () => {
+      fireEvent.click(confirmCancelBtn)
+    })
+
+    // Both updateSession (with final duration) and cancelSession must be called in order
+    expect(workoutExecutionService.updateSession).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({
+        duration_seconds: expect.any(Number),
+      })
+    )
+    expect(workoutExecutionService.cancelSession).toHaveBeenCalledWith(42, expect.objectContaining({ client_version: expect.any(Number) }))
+  })
+
+  it('Batch 3.1: Failed completion retains recoverable draft in localStorage', async () => {
+    vi.mocked(workoutExecutionService.updateSession).mockRejectedValueOnce(
+      new Error('500 Internal Server Error')
+    )
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={mockActiveSession}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Type new reps
+    const repsInput = screen.getByLabelText(/Set 1 reps/i)
+    await act(async () => {
+      fireEvent.change(repsInput, { target: { value: '15' } })
+    })
+
+    // Attempt completion
+    fireEvent.click(screen.getByRole('button', { name: 'Complete Workout' }))
+    const finishBtn = screen.getByRole('button', { name: 'Finish Workout' })
+    await act(async () => {
+      fireEvent.click(finishBtn)
+    })
+
+    // Error is shown, modal closes, and draft is NOT cleared
+    expect(await screen.findByText(/500 internal server error/i)).toBeInTheDocument()
+    const draft = loadWorkoutDraft(42)
+    expect(draft).not.toBeNull()
+    expect(draft?.exercises[0].sets[0].reps).toBe(15)
+  })
+
+  it('Batch 3.1: Failed cancellation retains recoverable draft in localStorage', async () => {
+    vi.mocked(workoutExecutionService.cancelSession).mockRejectedValueOnce(
+      new Error('503 Service Unavailable')
+    )
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={mockActiveSession}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Type new reps to create draft
+    const repsInput = screen.getByLabelText(/Set 1 reps/i)
+    await act(async () => {
+      fireEvent.change(repsInput, { target: { value: '8' } })
+    })
+
+    // Attempt cancellation
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const confirmCancelBtn = screen.getByRole('button', { name: 'Confirm Cancel' })
+    await act(async () => {
+      fireEvent.click(confirmCancelBtn)
+    })
+
+    expect(await screen.findByText(/503 service unavailable/i)).toBeInTheDocument()
+    // Draft must still exist in localStorage
+    expect(loadWorkoutDraft(42)).not.toBeNull()
+  })
+
+  it('Batch 3.1: Older in-flight response does not mark newer unsaved edits as clean', async () => {
+    let resolveFirstUpdate: (value: WorkoutSessionLog) => void = () => {}
+    const firstUpdatePromise = new Promise<WorkoutSessionLog>((resolve) => {
+      resolveFirstUpdate = resolve
+    })
+
+    // First save hangs in flight
+    vi.mocked(workoutExecutionService.updateSession)
+      .mockImplementationOnce(() => firstUpdatePromise)
+      .mockImplementation(async (_id, update) => ({
+        ...mockActiveSession,
+        exercises: (update.exercises as unknown as LoggedExercise[]) ?? mockActiveSession.exercises,
+      }))
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={mockActiveSession}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Trigger save 1
+    const completeBtn = screen.getByRole('button', { name: /mark set 1 as complete/i })
+    await act(async () => {
+      fireEvent.click(completeBtn)
+    })
+    expect(workoutExecutionService.updateSession).toHaveBeenCalledTimes(1)
+
+    // User types new weight while save 1 is in-flight
+    const weightInput = screen.getByLabelText(/Set 1 weight in kg/i)
+    await act(async () => {
+      fireEvent.change(weightInput, { target: { value: '92.5' } })
+    })
+
+    // Now resolve save 1
+    await act(async () => {
+      resolveFirstUpdate({
+        ...mockActiveSession,
+        exercises: mockActiveSession.exercises,
+      })
+    })
+
+    // The runner must immediately dispatch save 2 with the newer weight (92.5)
+    expect(workoutExecutionService.updateSession).toHaveBeenCalledTimes(2)
+    expect(workoutExecutionService.updateSession).toHaveBeenLastCalledWith(
+      42,
+      expect.objectContaining({
+        exercises: expect.arrayContaining([
+          expect.objectContaining({
+            sets: expect.arrayContaining([
+              expect.objectContaining({ set_number: 1, weight_kg: 92.5 }),
+            ]),
+          }),
+        ]),
+      })
+    )
+  })
+
+  it('Batch 3.1: Multi-tab conflict detection (409 Conflict) displays conflict alert and preserves draft', async () => {
+    vi.mocked(workoutExecutionService.updateSession).mockRejectedValueOnce(
+      new Error('Workout session was modified in another window or tab.')
+    )
+    vi.mocked(workoutExecutionService.getSessionById).mockResolvedValueOnce({
+      ...mockActiveSession,
+      notes: 'Notes from Tab B',
+    })
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={mockActiveSession}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Trigger save
+    const completeBtn = screen.getByRole('button', { name: /mark set 1 as complete/i })
+    await act(async () => {
+      fireEvent.click(completeBtn)
+    })
+
+    // Conflict alert is shown
+    expect(await screen.findByText(/multi-tab conflict detected/i)).toBeInTheDocument()
+    expect(screen.getByText(/reload server state/i)).toBeInTheDocument()
+    expect(screen.getByText(/force overwrite with my edits/i)).toBeInTheDocument()
+
+    // Local draft is preserved
+    expect(loadWorkoutDraft(42)).not.toBeNull()
+
+    // Clicking Reload Server State updates session and resolves conflict
+    const reloadBtn = screen.getByRole('button', { name: /reload server state/i })
+    await act(async () => {
+      fireEvent.click(reloadBtn)
+    })
+
+    expect(workoutExecutionService.getSessionById).toHaveBeenCalledWith(42)
+    expect(screen.queryByText(/multi-tab conflict detected/i)).not.toBeInTheDocument()
+  })
+
+  it('Batch 3.2: Save payload includes client_version and updates serverVersionRef upon response', async () => {
+    vi.mocked(workoutExecutionService.updateSession).mockResolvedValueOnce({
+      ...mockActiveSession,
+      version: 2,
+    })
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={{ ...mockActiveSession, version: 1 }}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Complete Set 1 triggers save
+    const completeBtn = screen.getByRole('button', { name: /mark set 1 as complete/i })
+    await act(async () => {
+      fireEvent.click(completeBtn)
+    })
+
+    // First save passes client_version = 1
+    expect(workoutExecutionService.updateSession).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({
+        client_version: 1,
+        force_overwrite: false,
+      })
+    )
+
+    // Second update should now pass client_version = 2
+    vi.mocked(workoutExecutionService.updateSession).mockResolvedValueOnce({
+      ...mockActiveSession,
+      version: 3,
+    })
+    const skipBtn = screen.getByRole('button', { name: /skip set 2/i })
+    await act(async () => {
+      fireEvent.click(skipBtn)
+    })
+
+    expect(workoutExecutionService.updateSession).toHaveBeenLastCalledWith(
+      42,
+      expect.objectContaining({
+        client_version: 2,
+        force_overwrite: false,
+      })
+    )
+  })
+
+  it('Batch 3.2: Reload Server State aborts without changing state when user declines confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+    vi.mocked(workoutExecutionService.updateSession).mockRejectedValueOnce(
+      new Error('Workout session conflict: expected version 1, but server is at version 2.')
+    )
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={{ ...mockActiveSession, version: 1 }}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Trigger save conflict
+    const completeBtn = screen.getByRole('button', { name: /mark set 1 as complete/i })
+    await act(async () => {
+      fireEvent.click(completeBtn)
+    })
+
+    expect(await screen.findByText(/multi-tab conflict detected/i)).toBeInTheDocument()
+
+    // Click Reload Server State, but user cancels confirmation prompt
+    const reloadBtn = screen.getByRole('button', { name: /reload server state/i })
+    await act(async () => {
+      fireEvent.click(reloadBtn)
+    })
+
+    // Confirmation was prompted, but getSessionById was not called
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('Reloading server state will discard your local edits')
+    )
+    expect(workoutExecutionService.getSessionById).not.toHaveBeenCalled()
+    // Conflict banner still visible
+    expect(screen.getByText(/multi-tab conflict detected/i)).toBeInTheDocument()
+  })
+
+  it('Batch 3.2: Force Overwrite sends force_overwrite=true, clears conflict, and updates server version', async () => {
+    vi.mocked(workoutExecutionService.updateSession)
+      .mockRejectedValueOnce(
+        new Error('Workout session conflict: expected version 1, but server is at version 2.')
+      )
+      .mockResolvedValueOnce({
+        ...mockActiveSession,
+        version: 3,
+      })
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={{ ...mockActiveSession, version: 1 }}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Trigger save conflict
+    const completeBtn = screen.getByRole('button', { name: /mark set 1 as complete/i })
+    await act(async () => {
+      fireEvent.click(completeBtn)
+    })
+
+    expect(await screen.findByText(/multi-tab conflict detected/i)).toBeInTheDocument()
+
+    // Click Force Overwrite
+    const forceBtn = screen.getByRole('button', { name: /force overwrite with my edits/i })
+    await act(async () => {
+      fireEvent.click(forceBtn)
+    })
+
+    // Second call to updateSession should have force_overwrite: true
+    expect(workoutExecutionService.updateSession).toHaveBeenLastCalledWith(
+      42,
+      expect.objectContaining({
+        force_overwrite: true,
+      })
+    )
+
+    // Conflict banner dismissed and saved status restored
+    await waitFor(() => {
+      expect(screen.queryByText(/multi-tab conflict detected/i)).not.toBeInTheDocument()
+    })
+  })
+  it('Batch 3.3: 409 Conflict during workout completion displays conflict banner and retains local draft', async () => {
+    vi.mocked(workoutExecutionService.completeSession).mockRejectedValueOnce(
+      new Error('Workout session conflict: expected version 1, but server is at version 2.')
+    )
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={{ ...mockActiveSession, version: 1 }}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Complete Set 1
+    const completeBtn = screen.getByRole('button', { name: /mark set 1 as complete/i })
+    await act(async () => {
+      fireEvent.click(completeBtn)
+    })
+
+    // Attempt finish workout
+    fireEvent.click(screen.getByRole('button', { name: 'Complete Workout' }))
+    const finishBtn = screen.getByRole('button', { name: 'Finish Workout' })
+    await act(async () => {
+      fireEvent.click(finishBtn)
+    })
+
+    // Conflict banner appears
+    expect(await screen.findByText(/multi-tab conflict detected/i)).toBeInTheDocument()
+    expect(screen.getByText(/expected version 1, but server is at version 2/i)).toBeInTheDocument()
+    // Local draft remains intact
+    expect(loadWorkoutDraft(42)).not.toBeNull()
+  })
+
+  it('Batch 3.3: 409 Conflict during workout cancellation displays conflict banner and retains local draft', async () => {
+    vi.mocked(workoutExecutionService.cancelSession).mockRejectedValueOnce(
+      new Error('Workout session conflict: expected version 1, but server is at version 2.')
+    )
+
+    render(
+      <ActiveWorkoutSessionRunner
+        initialSession={{ ...mockActiveSession, version: 1 }}
+        onFinishOrCancel={vi.fn()}
+      />
+    )
+
+    // Type reps
+    const repsInput = screen.getByLabelText(/Set 1 reps/i)
+    await act(async () => {
+      fireEvent.change(repsInput, { target: { value: '12' } })
+    })
+
+    // Attempt cancel workout
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const confirmCancelBtn = screen.getByRole('button', { name: 'Confirm Cancel' })
+    await act(async () => {
+      fireEvent.click(confirmCancelBtn)
+    })
+
+    // Conflict banner appears
+    expect(await screen.findByText(/multi-tab conflict detected/i)).toBeInTheDocument()
+    // Local draft remains intact
+    expect(loadWorkoutDraft(42)).not.toBeNull()
   })
 })

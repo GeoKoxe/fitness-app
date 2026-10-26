@@ -15,6 +15,7 @@ from app.schemas.workout_log import (
     WorkoutSessionLogSummaryResponse,
     WorkoutSessionLogUpdate,
     WorkoutSessionStartRequest,
+    WorkoutSessionTransitionRequest,
 )
 from app.schemas.workout_analytics import (
     ExercisePerformanceHistoryResponse,
@@ -256,17 +257,29 @@ def update_workout_session(
 @router.post(
     "/sessions/{session_id}/complete", response_model=WorkoutSessionLogResponse
 )
-def complete_workout_session(session_id: int, db: Session = Depends(get_db)):
+def complete_workout_session(
+    session_id: int,
+    transition_in: Optional[WorkoutSessionTransitionRequest] = None,
+    db: Session = Depends(get_db),
+):
     """Mark a workout session completed."""
-    return workout_execution_service.complete_session(db, session_id)
+    return workout_execution_service.complete_session(
+        db, session_id, transition_in
+    )
 
 
 @router.post(
     "/sessions/{session_id}/cancel", response_model=WorkoutSessionLogResponse
 )
-def cancel_workout_session(session_id: int, db: Session = Depends(get_db)):
+def cancel_workout_session(
+    session_id: int,
+    transition_in: Optional[WorkoutSessionTransitionRequest] = None,
+    db: Session = Depends(get_db),
+):
     """Cancel an active workout session (not counted as completed)."""
-    return workout_execution_service.cancel_session(db, session_id)
+    return workout_execution_service.cancel_session(
+        db, session_id, transition_in
+    )
 
 
 # =============================================================================

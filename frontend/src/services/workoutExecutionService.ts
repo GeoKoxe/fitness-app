@@ -4,6 +4,7 @@ import type {
   WorkoutSessionLogSummary,
   WorkoutSessionLogUpdate,
   WorkoutSessionStartRequest,
+  WorkoutSessionTransitionRequest,
 } from '../types/workoutLog'
 
 export const workoutExecutionService = {
@@ -49,16 +50,24 @@ export const workoutExecutionService = {
     })
   },
 
-  completeSession: async (id: number): Promise<WorkoutSessionLog> => {
-    return request<WorkoutSessionLog>(`/workouts/sessions/${id}/complete`, {
-      method: 'POST',
-    })
+  completeSession: async (
+    id: number,
+    req?: WorkoutSessionTransitionRequest
+  ): Promise<WorkoutSessionLog> => {
+    return request<WorkoutSessionLog>(
+      `/workouts/sessions/${id}/complete`,
+      req ? { method: 'POST', body: JSON.stringify(req) } : { method: 'POST' }
+    )
   },
 
-  cancelSession: async (id: number): Promise<WorkoutSessionLog> => {
-    return request<WorkoutSessionLog>(`/workouts/sessions/${id}/cancel`, {
-      method: 'POST',
-    })
+  cancelSession: async (
+    id: number,
+    req?: WorkoutSessionTransitionRequest
+  ): Promise<WorkoutSessionLog> => {
+    return request<WorkoutSessionLog>(
+      `/workouts/sessions/${id}/cancel`,
+      req ? { method: 'POST', body: JSON.stringify(req) } : { method: 'POST' }
+    )
   },
 }
 

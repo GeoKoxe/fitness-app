@@ -278,7 +278,7 @@ describe('Workout Execution & Session Logging (Phase 7.4)', () => {
       fireEvent.click(finishConfirmBtn)
     })
 
-    expect(workoutExecutionService.completeSession).toHaveBeenCalledWith(1)
+    expect(workoutExecutionService.completeSession).toHaveBeenCalledWith(1, expect.objectContaining({ client_version: expect.any(Number) }))
   })
 
   it('cancels workout after confirmation modal without marking completed', async () => {
@@ -311,7 +311,7 @@ describe('Workout Execution & Session Logging (Phase 7.4)', () => {
       fireEvent.click(confirmCancelBtn)
     })
 
-    expect(workoutExecutionService.cancelSession).toHaveBeenCalledWith(1)
+    expect(workoutExecutionService.cancelSession).toHaveBeenCalledWith(1, expect.objectContaining({ client_version: expect.any(Number) }))
   })
 
   it('filters history by status and opens log detail modal', async () => {

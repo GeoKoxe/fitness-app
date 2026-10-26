@@ -37,6 +37,7 @@ class WorkoutSessionLog(Base, TimestampMixin):
     )
     completed_at = Column(DateTime, nullable=True)
     duration_seconds = Column(Integer, nullable=False, default=0)
+    version = Column(Integer, nullable=False, default=1, server_default="1")
     notes = Column(Text, nullable=True)
 
     user_profile = relationship("UserProfile", backref="workout_session_logs")

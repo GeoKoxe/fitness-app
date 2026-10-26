@@ -3,11 +3,13 @@ import type {
   LoggedExercise,
   WorkoutSessionLog,
 } from '../../types/workoutLog'
+import { ApiError } from '../../services/api'
 import { workoutExecutionService } from '../../services/workoutExecutionService'
 import {
   calculateElapsedSeconds,
   clearWorkoutDraft,
   formatDuration,
+  getDraftKey,
   loadWorkoutDraft,
   saveWorkoutDraft,
   type WorkoutDraftTimerState,
@@ -26,7 +28,7 @@ export function ActiveWorkoutSessionRunner({
   onFinishOrCancel,
   onUnsavedChangesChange,
 }: ActiveWorkoutSessionRunnerProps) {
-  // Check for local draft on initial mount
+  // Load session-scoped draft from localStorage on initial render
   const initialDraft = useRef(loadWorkoutDraft(initialSession.id)).current
 
   const [session, setSession] = useState<WorkoutSessionLog>(() => {
@@ -70,6 +72,7 @@ export function ActiveWorkoutSessionRunner({
     return initialDraft && initialDraft.isDirty ? 'idle' : 'saved'
   })
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null)
+  const [conflictError, setConflictError] = useState<string | null>(null)
   const [, setLastSavedAt] = useState<Date | null>(null)
 
   const [actionLoading, setActionLoading] = useState(false)
@@ -79,7 +82,7 @@ export function ActiveWorkoutSessionRunner({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
 
-  // Refs for race-condition and debounce management
+  // Refs for race-condition, mutation tracking, and debounce management
   const sessionRef = useRef(session)
   sessionRef.current = session
 
@@ -91,6 +94,13 @@ export function ActiveWorkoutSessionRunner({
 
   const isDirtyRef = useRef(isDirty)
   isDirtyRef.current = isDirty
+
+  // Track mutation sequence to prevent older responses from clearing newer unsaved edits
+  const mutationSeqRef = useRef<number>(0)
+
+  // Track server version for deterministic optimistic concurrency control (OCC)
+  const serverVersionRef = useRef<number>(initialSession.version ?? 1)
+  const lastKnownServerUpdatedAtRef = useRef<string | null>(initialSession.updated_at || null)
 
   const inFlightPromiseRef = useRef<Promise<boolean> | null>(null)
   const queuedSaveRef = useRef<boolean>(false)
@@ -123,58 +133,94 @@ export function ActiveWorkoutSessionRunner({
     []
   )
 
-  // Core save executor with in-flight protection and queueing
-  const executeSave = useCallback(async (): Promise<boolean> => {
-    // If a save is already in-flight, queue the latest state for subsequent save
-    if (inFlightPromiseRef.current) {
-      queuedSaveRef.current = true
-      return false
-    }
-
-    setSaveStatus('saving')
-    setSaveErrorMessage(null)
-
-    const payload = {
-      session_name: sessionRef.current.session_name,
-      notes: sessionRef.current.notes ?? undefined,
-      duration_seconds: durationRef.current,
-      exercises: sessionRef.current.exercises,
-    }
-
-    const savePromise = (async (): Promise<boolean> => {
-      try {
-        const updated = await workoutExecutionService.updateSession(
-          sessionRef.current.id,
-          payload
-        )
-        setLastSavedAt(new Date())
-
-        // If no edits occurred while save was in flight, mark clean
-        if (!queuedSaveRef.current) {
-          isDirtyRef.current = false
-          setIsDirty(false)
-          setSaveStatus('saved')
-          updateDraft(updated, durationRef.current, timerStateRef.current, false)
-        }
-        return true
-      } catch (err) {
-        setSaveStatus('error')
-        const message = err instanceof Error ? err.message : 'Failed to save progress.'
-        setSaveErrorMessage(message)
+  // Core save executor with in-flight protection, mutation sequence checks, and multi-tab conflict detection
+  const executeSave = useCallback(
+    async (forceOverwrite: boolean = false): Promise<boolean> => {
+      // If a save is already in-flight, queue the latest state for subsequent save
+      if (inFlightPromiseRef.current) {
+        queuedSaveRef.current = true
         return false
-      } finally {
-        inFlightPromiseRef.current = null
-        // If changes were made while this save was executing, run queued save now
-        if (queuedSaveRef.current) {
-          queuedSaveRef.current = false
-          void executeSave()
-        }
       }
-    })()
 
-    inFlightPromiseRef.current = savePromise
-    return savePromise
-  }, [updateDraft])
+      setSaveStatus('saving')
+      setSaveErrorMessage(null)
+      setConflictError(null)
+
+      const saveSeq = mutationSeqRef.current
+      const currentDuration = calculateElapsedSeconds(timerStateRef.current)
+      durationRef.current = currentDuration
+      setDuration(currentDuration)
+
+      const payload = {
+        session_name: sessionRef.current.session_name,
+        notes: sessionRef.current.notes ?? undefined,
+        duration_seconds: currentDuration,
+        exercises: sessionRef.current.exercises,
+        client_version: forceOverwrite ? undefined : serverVersionRef.current,
+        force_overwrite: forceOverwrite,
+        client_updated_at: forceOverwrite ? undefined : (lastKnownServerUpdatedAtRef.current ?? undefined),
+      }
+
+      const savePromise = (async (): Promise<boolean> => {
+        try {
+          const updated = await workoutExecutionService.updateSession(
+            sessionRef.current.id,
+            payload
+          )
+          setLastSavedAt(new Date())
+          if (updated?.version) {
+            serverVersionRef.current = updated.version
+          }
+          if (updated.updated_at) {
+            lastKnownServerUpdatedAtRef.current = updated.updated_at
+          }
+
+          // Check if user made newer edits while this save was in flight
+          if (mutationSeqRef.current === saveSeq) {
+            isDirtyRef.current = false
+            setIsDirty(false)
+            setSaveStatus('saved')
+            updateDraft(sessionRef.current, durationRef.current, timerStateRef.current, false)
+          } else {
+            // Newer edits exist; retain dirty flag and queue immediate follow-up save
+            queuedSaveRef.current = true
+          }
+          return true
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Failed to save progress.'
+          const isConflict =
+            message.toLowerCase().includes('another window or tab') ||
+            message.toLowerCase().includes('conflict') ||
+            (err instanceof ApiError && err.status === 409)
+
+          if (isConflict) {
+            setConflictError(
+              message.includes('expected version')
+                ? message
+                : 'This workout was modified in another window or tab. Your latest edits are preserved in your local draft.'
+            )
+          }
+
+          setSaveStatus('error')
+          setSaveErrorMessage(message)
+          // Keep local draft intact with latest user changes
+          updateDraft(sessionRef.current, durationRef.current, timerStateRef.current, true)
+          return false
+        } finally {
+          inFlightPromiseRef.current = null
+          // If changes were made while this save was executing, run queued save now
+          if (queuedSaveRef.current) {
+            queuedSaveRef.current = false
+            void executeSave()
+          }
+        }
+      })()
+
+      inFlightPromiseRef.current = savePromise
+      return savePromise
+    },
+    [updateDraft]
+  )
 
   // Debounce autosave helper for keystrokes
   const scheduleDebouncedAutosave = useCallback(() => {
@@ -187,13 +233,16 @@ export function ActiveWorkoutSessionRunner({
   }, [executeSave])
 
   // Immediate save for boundaries (set completed/skipped, set added, explicit button)
-  const triggerImmediateSave = useCallback(async () => {
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current)
-      autosaveTimerRef.current = null
-    }
-    return executeSave()
-  }, [executeSave])
+  const triggerImmediateSave = useCallback(
+    async (forceOverwrite: boolean = false) => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+      return executeSave(forceOverwrite)
+    },
+    [executeSave]
+  )
 
   // Live timer tick
   useEffect(() => {
@@ -207,6 +256,30 @@ export function ActiveWorkoutSessionRunner({
 
     return () => clearInterval(timer)
   }, [timerState.isPaused])
+
+  // Cross-tab storage listener to detect changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === getDraftKey(initialSession.id) && e.newValue) {
+        try {
+          const incoming = JSON.parse(e.newValue)
+          if (incoming && incoming.sessionId === initialSession.id && incoming.isDirty) {
+            // Another tab edited this workout draft
+            setConflictError(
+              'Draft activity detected from another window or tab. Please ensure you are not editing simultaneously.'
+            )
+          }
+        } catch {
+          // Ignore parse errors from external events
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [initialSession.id])
 
   // Pause / Resume toggle
   const handleToggleTimer = () => {
@@ -233,7 +306,7 @@ export function ActiveWorkoutSessionRunner({
       setDuration(currentElapsed)
       durationRef.current = currentElapsed
       updateDraft(sessionRef.current, currentElapsed, newTimer, isDirtyRef.current)
-      // Save duration on pause
+      // Persist duration to backend on pause
       void triggerImmediateSave()
     }
   }
@@ -283,7 +356,10 @@ export function ActiveWorkoutSessionRunner({
     value: unknown
   ) => {
     setSaveErrorMessage(null)
+    setConflictError(null)
     const isBoundaryAction = field === 'is_completed' || field === 'is_skipped'
+
+    mutationSeqRef.current += 1
 
     const updatedExercises = sessionRef.current.exercises.map((ex) => {
       if (ex.order_in_session !== exOrder) return ex
@@ -332,6 +408,8 @@ export function ActiveWorkoutSessionRunner({
 
   // Add set to exercise
   const handleAddSet = (exOrder: number) => {
+    mutationSeqRef.current += 1
+
     const updatedExercises = sessionRef.current.exercises.map((ex) => {
       if (ex.order_in_session !== exOrder) return ex
       const nextSetNum = ex.sets.length + 1
@@ -362,6 +440,8 @@ export function ActiveWorkoutSessionRunner({
 
   // Update exercise notes
   const handleExerciseNotesChange = (exOrder: number, notes: string) => {
+    mutationSeqRef.current += 1
+
     const updatedExercises = sessionRef.current.exercises.map((ex) =>
       ex.order_in_session === exOrder ? { ...ex, notes } : ex
     )
@@ -384,11 +464,48 @@ export function ActiveWorkoutSessionRunner({
     }
   }
 
-  // Complete session
+  // Conflict resolution: reload server state
+  const handleReloadServerState = async () => {
+    if (isDirty) {
+      const confirmed = window.confirm(
+        'You have unsaved changes in this tab. Reloading server state will discard your local edits. Continue?'
+      )
+      if (!confirmed) {
+        return
+      }
+    }
+    try {
+      setActionLoading(true)
+      const fresh = await workoutExecutionService.getSessionById(session.id)
+      sessionRef.current = fresh
+      setSession(fresh)
+      serverVersionRef.current = fresh.version ?? 1
+      lastKnownServerUpdatedAtRef.current = fresh.updated_at
+      setConflictError(null)
+      setSaveErrorMessage(null)
+      setIsDirty(false)
+      isDirtyRef.current = false
+      updateDraft(fresh, durationRef.current, timerStateRef.current, false)
+      setSaveStatus('saved')
+    } catch (err) {
+      setSaveErrorMessage(err instanceof Error ? err.message : 'Failed to reload server state.')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Conflict resolution: force overwrite with current local draft
+  const handleForceOverwrite = async () => {
+    await triggerImmediateSave(true)
+  }
+
+  // Complete session: sync final duration & exercises, then complete, then clean draft
   const handleCompleteWorkout = async () => {
     if (actionLoading) return
     setActionLoading(true)
     setSaveErrorMessage(null)
+    setConflictError(null)
+
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = null
@@ -400,45 +517,107 @@ export function ActiveWorkoutSessionRunner({
         await inFlightPromiseRef.current
       }
 
-      // Final state sync to backend
-      await workoutExecutionService.updateSession(session.id, {
+      // Final state and duration sync to backend
+      const finalDuration = calculateElapsedSeconds(timerStateRef.current)
+      durationRef.current = finalDuration
+
+      const updatedComplete = await workoutExecutionService.updateSession(session.id, {
         session_name: sessionRef.current.session_name,
         notes: sessionRef.current.notes ?? undefined,
-        duration_seconds: durationRef.current,
+        duration_seconds: finalDuration,
         exercises: sessionRef.current.exercises,
+        client_version: serverVersionRef.current,
       })
+      if (updatedComplete?.version) {
+        serverVersionRef.current = updatedComplete.version
+      }
 
       // Complete session
-      await workoutExecutionService.completeSession(session.id)
+      await workoutExecutionService.completeSession(session.id, {
+        client_version: serverVersionRef.current,
+      })
 
-      // Clean up local draft
+      // Clean up local draft only after successful completion
       clearWorkoutDraft(session.id)
       onUnsavedChangesChange?.(false)
       onFinishOrCancel()
     } catch (err) {
-      setSaveErrorMessage(err instanceof Error ? err.message : 'Failed to complete workout.')
+      const message = err instanceof Error ? err.message : 'Failed to complete workout.'
+      const isConflict =
+        message.toLowerCase().includes('another window or tab') ||
+        message.toLowerCase().includes('conflict') ||
+        (err instanceof ApiError && err.status === 409)
+
+      if (isConflict) {
+        setConflictError(
+          message.includes('expected version')
+            ? message
+            : 'This workout was modified in another window or tab. Please reload server state or force overwrite before completing.'
+        )
+      }
+      setSaveErrorMessage(message)
       setActionLoading(false)
       setShowCompleteConfirm(false)
     }
   }
 
-  // Cancel session
+  // Cancel session: sync final duration, then cancel, then clean draft
   const handleCancelWorkout = async () => {
     if (actionLoading) return
     setActionLoading(true)
     setSaveErrorMessage(null)
+    setConflictError(null)
+
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = null
     }
 
     try {
-      await workoutExecutionService.cancelSession(session.id)
+      // If a save was in flight, wait for it
+      if (inFlightPromiseRef.current) {
+        await inFlightPromiseRef.current
+      }
+
+      // Final state and duration sync to backend
+      const finalDuration = calculateElapsedSeconds(timerStateRef.current)
+      durationRef.current = finalDuration
+
+      const updatedCancel = await workoutExecutionService.updateSession(session.id, {
+        session_name: sessionRef.current.session_name,
+        notes: sessionRef.current.notes ?? undefined,
+        duration_seconds: finalDuration,
+        exercises: sessionRef.current.exercises,
+        client_version: serverVersionRef.current,
+      })
+      if (updatedCancel?.version) {
+        serverVersionRef.current = updatedCancel.version
+      }
+
+      // Cancel session
+      await workoutExecutionService.cancelSession(session.id, {
+        client_version: serverVersionRef.current,
+      })
+
+      // Clean up local draft only after successful cancellation
       clearWorkoutDraft(session.id)
       onUnsavedChangesChange?.(false)
       onFinishOrCancel()
     } catch (err) {
-      setSaveErrorMessage(err instanceof Error ? err.message : 'Failed to cancel workout.')
+      const message = err instanceof Error ? err.message : 'Failed to cancel workout.'
+      const isConflict =
+        message.toLowerCase().includes('another window or tab') ||
+        message.toLowerCase().includes('conflict') ||
+        (err instanceof ApiError && err.status === 409)
+
+      if (isConflict) {
+        setConflictError(
+          message.includes('expected version')
+            ? message
+            : 'This workout was modified in another window or tab. Please reload server state or force overwrite before cancelling.'
+        )
+      }
+      setSaveErrorMessage(message)
       setActionLoading(false)
       setShowCancelConfirm(false)
     }
@@ -602,8 +781,42 @@ export function ActiveWorkoutSessionRunner({
           </div>
         )}
 
+        {/* Multi-Tab Conflict Notification Banner */}
+        {conflictError && (
+          <div
+            role="alert"
+            className="mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-xs text-amber-900 dark:text-amber-200 space-y-2"
+          >
+            <div className="flex items-center gap-2 font-bold">
+              <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Multi-Tab Conflict Detected</span>
+            </div>
+            <p className="leading-relaxed">{conflictError}</p>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => void handleReloadServerState()}
+                disabled={actionLoading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white cursor-pointer"
+              >
+                Reload Server State
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleForceOverwrite()}
+                disabled={actionLoading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber-400 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-100 cursor-pointer"
+              >
+                Force Overwrite With My Edits
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error and Toast Messages */}
-        {saveErrorMessage && (
+        {saveErrorMessage && !conflictError && (
           <div className="mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
             {saveErrorMessage}
           </div>

@@ -184,6 +184,7 @@ async def test_complete_system_backup_export_and_schema(client: AsyncClient):
     update_res = await client.put(
         f"/api/workouts/sessions/{session_log['id']}",
         json={
+            "client_version": 1,
             "session_name": "Autumn Push Focus",
             "duration_seconds": 3600,
             "exercises": [
