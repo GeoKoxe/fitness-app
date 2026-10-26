@@ -13,7 +13,9 @@ def calculate_nutrient_scale(
     """Calculate scaled nutrient value based on consumed quantity and food basis.
 
     - If basis is '100g' and unit is 'g': scale = quantity / 100.0
+    - If basis is '100g' and unit is 'kg': scale = (quantity * 1000.0) / 100.0
     - If basis is '100ml' and unit is 'ml': scale = quantity / 100.0
+    - If basis is '100ml' and unit is 'l': scale = (quantity * 1000.0) / 100.0
     - If unit is 'serving' and food basis is 'serving': scale = quantity
     - If unit is 'serving' and food basis is '100g' with serving_quantity: scale = (quantity * serving_quantity) / 100.0
     - Returns None if base_nutrient is None (preserves unknown nutrients).
@@ -27,20 +29,34 @@ def calculate_nutrient_scale(
     unit_clean = (unit or "g").lower().strip()
 
     factor = 1.0
-    if unit_clean in ("g", "grams"):
+    if unit_clean in ("g", "grams", "gram"):
         if "100g" in basis_clean or "100" in basis_clean:
             factor = quantity / 100.0
         elif serving_quantity and serving_quantity > 0 and "serving" in basis_clean:
             factor = quantity / serving_quantity
         else:
             factor = quantity / 100.0
-    elif unit_clean in ("ml", "milliliters"):
+    elif unit_clean in ("kg", "kilograms", "kilogram"):
+        if "100g" in basis_clean or "100" in basis_clean:
+            factor = (quantity * 1000.0) / 100.0
+        elif serving_quantity and serving_quantity > 0 and "serving" in basis_clean:
+            factor = (quantity * 1000.0) / serving_quantity
+        else:
+            factor = (quantity * 1000.0) / 100.0
+    elif unit_clean in ("ml", "milliliters", "milliliter"):
         if "100ml" in basis_clean or "100" in basis_clean:
             factor = quantity / 100.0
         elif serving_quantity and serving_quantity > 0 and "serving" in basis_clean:
             factor = quantity / serving_quantity
         else:
             factor = quantity / 100.0
+    elif unit_clean in ("l", "liters", "liter"):
+        if "100ml" in basis_clean or "100" in basis_clean:
+            factor = (quantity * 1000.0) / 100.0
+        elif serving_quantity and serving_quantity > 0 and "serving" in basis_clean:
+            factor = (quantity * 1000.0) / serving_quantity
+        else:
+            factor = (quantity * 1000.0) / 100.0
     elif unit_clean in ("serving", "servings", "portion", "portions"):
         if "serving" in basis_clean:
             factor = quantity
@@ -98,6 +114,8 @@ def round_portion_quantity(quantity: float, unit: str) -> float:
     """Enforce whole multiples of 5 for weight/volume, and whole integers for count-based units.
 
     - Weight (g, grams, ml, milliliters): positive whole-number multiple of 5 (e.g. 20g, 25g, 150g).
+    - Weight/Volume (kg, kilograms, l, liters): preserved in original unit, rounded to correspond
+      to a positive whole-number multiple of 5 grams/ml (e.g. 0.025 kg, 0.5 kg, 1.25 l).
     - Count (serving, piece, unit, egg, banana): positive whole integer (1, 2, 3...).
     """
     if quantity <= 0:
@@ -107,9 +125,10 @@ def round_portion_quantity(quantity: float, unit: str) -> float:
     if unit_clean in ("g", "grams", "gram", "ml", "milliliters", "milliliter"):
         rounded = round(quantity / 5.0) * 5
         return float(max(5, int(rounded)))
-    elif unit_clean in ("kg", "kilograms", "l", "liters", "liter"):
-        rounded = round(quantity * 1000.0 / 5.0) * 5
-        return float(max(5, int(rounded)))
+    elif unit_clean in ("kg", "kilograms", "kilogram", "l", "liters", "liter"):
+        grams = quantity * 1000.0
+        rounded_grams = max(5, round(grams / 5.0) * 5)
+        return round(rounded_grams / 1000.0, 3)
     else:
         # Count-based units: whole counts (e.g. 1 egg, 2 bananas, 1 serving)
         return float(max(1, int(round(quantity))))
@@ -127,10 +146,15 @@ def validate_portion_quantity(quantity: float, unit: str) -> Tuple[bool, Optiona
     if unit_clean in ("g", "grams", "gram", "ml", "milliliters", "milliliter"):
         if quantity % 5 != 0 or int(quantity) != quantity:
             return False, f"Weight/volume quantity must be a whole-number multiple of 5 (e.g. 25 {unit}, 150 {unit}). Got {quantity}."
+    elif unit_clean in ("kg", "kilograms", "kilogram", "l", "liters", "liter"):
+        grams = round(quantity * 1000.0, 4)
+        if grams <= 0 or grams % 5 != 0 or int(grams) != grams:
+            return False, (
+                f"Weight/volume quantity in {unit} must correspond to a positive multiple of 5 grams/ml "
+                f"(e.g. 0.025 {unit}, 0.5 {unit}). Got {quantity}."
+            )
     else:
         if int(quantity) != quantity:
             return False, f"Count-based ingredients must be whole counts (e.g. 1, 2). Got {quantity}."
 
     return True, None
-
-

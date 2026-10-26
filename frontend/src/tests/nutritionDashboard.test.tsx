@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NutritionDashboard } from '../features/nutrition/NutritionDashboard'
+import { nutritionGoalService } from '../services/nutritionGoalService'
 import type { DailyNutritionSummary } from '../types/nutrition'
+import type { NutritionGoal } from '../types/nutritionGoal'
 
 const mockSummary: DailyNutritionSummary = {
   logged_date: '2026-10-23',
@@ -47,6 +49,18 @@ const mockSummary: DailyNutritionSummary = {
   total_entries: 1,
 }
 
+const mockGoals: NutritionGoal = {
+  id: 1,
+  user_profile_id: 1,
+  calories_kcal: 2000,
+  protein_g: 150,
+  carbs_g: 200,
+  fat_g: 65,
+  fiber_g: 30,
+  created_at: '2026-10-23T08:00:00Z',
+  updated_at: '2026-10-23T08:00:00Z',
+}
+
 vi.mock('../services/mealLogService', () => ({
   mealLogService: {
     getDailySummary: vi.fn().mockImplementation(() => Promise.resolve(mockSummary)),
@@ -67,9 +81,19 @@ vi.mock('../services/foodService', () => ({
   },
 }))
 
+vi.mock('../services/nutritionGoalService', () => ({
+  nutritionGoalService: {
+    getGoals: vi.fn(),
+    updateGoals: vi.fn(),
+    estimateGoals: vi.fn(),
+    getReport: vi.fn(),
+  },
+}))
+
 describe('NutritionDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(nutritionGoalService.getGoals).mockResolvedValue(mockGoals)
   })
 
   it('renders daily nutrition summary and logged breakfast item', async () => {
@@ -105,4 +129,3 @@ describe('NutritionDashboard', () => {
     })
   })
 })
-
