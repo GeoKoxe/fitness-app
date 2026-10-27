@@ -71,25 +71,25 @@ export function MealCategoryCard({
     switch (category) {
       case 'breakfast':
         return (
-          <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-amber-700 dark:text-darkButter" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
         )
       case 'lunch':
         return (
-          <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-midnight dark:text-darkMidnight" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )
       case 'dinner':
         return (
-          <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-periwinkle dark:text-darkPeriwinkle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
           </svg>
         )
       case 'snacks':
         return (
-          <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-alert dark:text-darkCoral" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
           </svg>
         )
@@ -97,17 +97,17 @@ export function MealCategoryCard({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden text-left">
+    <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl shadow-xs overflow-hidden text-left transition-colors motion-reduce:transition-none">
       {/* Category Header */}
-      <div className="p-4 sm:p-5 flex justify-between items-center bg-slate-50/60 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3 bg-canvas/40 dark:bg-darkCanvas/40 border-b border-sand/70 dark:border-darkBorder/70">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <div className="p-2.5 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder shadow-2xs">
             {getMealIcon()}
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+            <h3 className="text-base font-bold text-ink dark:text-darkInk">{title}</h3>
             {logs.length > 0 && (
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
                 P: {mealTotalProtein}g • C: {mealTotalCarbs}g • F: {mealTotalFat}g
               </span>
             )}
@@ -115,15 +115,15 @@ export function MealCategoryCard({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-900 dark:text-slate-100 mr-1">
-            {mealTotalCalories} <span className="text-xs font-normal text-slate-500">kcal</span>
+          <span className="text-sm font-bold text-ink dark:text-darkInk mr-1">
+            {mealTotalCalories} <span className="text-xs font-normal text-inkSecondary dark:text-darkInkSecondary">kcal</span>
           </span>
           {logs.length > 0 && onRemoveAll && (
             <button
               type="button"
               disabled={isDeletingCategory}
               onClick={handleRemoveAll}
-              className="px-2.5 py-1.5 text-xs font-semibold rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900 transition flex items-center gap-1 disabled:opacity-50"
+              className="px-2.5 py-1.5 text-xs font-semibold rounded-xl text-alert dark:text-darkCoral hover:bg-mist/30 dark:hover:bg-darkMist/30 border border-alert/30 dark:border-darkCoral/30 transition flex items-center gap-1 disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert"
               title={`Remove all ${logs.length} foods from ${title}`}
             >
               {isDeletingCategory ? 'Removing...' : 'Remove All'}
@@ -132,7 +132,7 @@ export function MealCategoryCard({
           <button
             type="button"
             onClick={() => onAddFood(category)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition flex items-center gap-1"
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white shadow-xs transition flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -143,31 +143,31 @@ export function MealCategoryCard({
       </div>
 
       {/* Logged Items List */}
-      <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+      <div className="divide-y divide-sand/50 dark:divide-darkBorder/60">
         {logs.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-400 dark:text-slate-500">
+          <div className="p-6 text-center text-xs text-inkSecondary dark:text-darkInkSecondary">
             No foods logged for {title.toLowerCase()}.
           </div>
         ) : (
           logs.map((log) => (
             <div
               key={log.id}
-              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition"
+              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-canvas/40 dark:hover:bg-darkCanvas/40 transition"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">
+                  <span className="font-semibold text-sm text-ink dark:text-darkInk truncate">
                     {log.food_name}
                   </span>
                   {log.food_brand && (
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-normal truncate">
+                    <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-normal truncate">
                       ({log.food_brand})
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-0.5">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5">
+                  <span className="font-bold text-ink dark:text-darkInk">
                     {log.quantity} {log.unit}
                   </span>
                   <span>•</span>
@@ -189,21 +189,21 @@ export function MealCategoryCard({
                       min="1"
                       value={editQty}
                       onChange={(e) => setEditQty(e.target.value)}
-                      className="w-20 px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900"
+                      className="w-20 px-2.5 py-1 text-xs font-semibold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                       aria-label="Edit quantity"
                     />
                     <button
                       type="button"
                       disabled={isUpdating}
                       onClick={() => handleSaveEdit(log.id)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition cursor-pointer"
                     >
                       Save
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingLogId(null)}
-                      className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700"
+                      className="px-2 py-1 text-xs font-semibold text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -213,7 +213,7 @@ export function MealCategoryCard({
                     <button
                       type="button"
                       onClick={() => handleStartEdit(log)}
-                      className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                      className="p-1.5 text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk transition rounded-xl hover:bg-mist/40 dark:hover:bg-darkMist/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
                       title="Edit portion"
                       aria-label={`Edit ${log.food_name} portion`}
                     >
@@ -224,7 +224,7 @@ export function MealCategoryCard({
                     <button
                       type="button"
                       onClick={() => handleDelete(log.id, log.food_name)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 transition rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                      className="p-1.5 text-alert dark:text-darkCoral hover:opacity-80 transition rounded-xl hover:bg-mist/40 dark:hover:bg-darkMist/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert"
                       title="Delete entry"
                       aria-label={`Delete ${log.food_name} entry`}
                     >
@@ -242,4 +242,3 @@ export function MealCategoryCard({
     </div>
   )
 }
-

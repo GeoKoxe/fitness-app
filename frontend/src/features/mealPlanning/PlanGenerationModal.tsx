@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { MealPlan } from '../../types/mealPlan'
 import type { NutritionGoal } from '../../types/nutritionGoal'
 import { mealPlanService } from '../../services/mealPlanService'
@@ -33,6 +33,14 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
   const macroDiff = Math.abs(macroCalories - targetCalories)
   const macroDiffPct = targetCalories > 0 ? (macroDiff / targetCalories) * 100 : 0
   const hasMacroConflict = macroDiffPct > targetTolerance * 1.5
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const toggleCategory = (cat: string) => {
     setEnabledCategories((prev) =>
@@ -78,25 +86,33 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 text-left border border-slate-100 max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="plan-generation-title"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div className="bg-surface rounded-2xl shadow-xl max-w-lg w-full p-6 text-left border border-edge max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-3 border-b border-edge">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">Generate 7-Day Meal Plan</h3>
-            <p className="text-xs text-slate-500">
+            <h3 id="plan-generation-title" className="text-lg font-bold text-ink">
+              Generate 7-Day Meal Plan
+            </h3>
+            <p className="text-xs text-inkSecondary">
               Deterministic planner matching your targets with local staple recipes
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors"
+            aria-label="Close dialog"
+            className="text-inkSecondary hover:text-ink rounded-lg p-1 hover:bg-surfaceMuted transition-colors"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border text-status-danger-fg text-xs rounded-lg">
             {error}
           </div>
         )}
@@ -104,78 +120,83 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
         <form onSubmit={handleGenerate} className="mt-4 space-y-4">
           {/* Plan Name */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="plan-name-input" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Plan Name
             </label>
             <input
+              id="plan-name-input"
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
 
           {/* Targets */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="plan-target-calories" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Calories (kcal)
               </label>
               <input
+                id="plan-target-calories"
                 type="number"
                 min="800"
                 max="8000"
                 value={targetCalories}
                 onChange={(e) => setTargetCalories(parseInt(e.target.value, 10) || 2000)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="plan-target-protein" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Protein (g)
               </label>
               <input
+                id="plan-target-protein"
                 type="number"
                 min="20"
                 max="500"
                 value={targetProtein}
                 onChange={(e) => setTargetProtein(parseInt(e.target.value, 10) || 120)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="plan-target-carbs" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Carbs (g)
               </label>
               <input
+                id="plan-target-carbs"
                 type="number"
                 min="0"
                 max="1000"
                 value={targetCarbs}
                 onChange={(e) => setTargetCarbs(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="plan-target-fat" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Fat (g)
               </label>
               <input
+                id="plan-target-fat"
                 type="number"
                 min="0"
                 max="500"
                 value={targetFat}
                 onChange={(e) => setTargetFat(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
           </div>
 
           {/* Live Atwater Feedback */}
           {hasMacroConflict ? (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-rose-900">
+            <div className="p-3 bg-status-danger-bg border border-status-danger-border rounded-xl text-status-danger-fg text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
                 <span>⚠️</span>
                 <span>Macronutrient & Energy Discrepancy</span>
               </div>
@@ -186,11 +207,11 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
               </p>
             </div>
           ) : (
-            <div className="text-[11px] text-slate-500 flex items-center justify-between px-1">
+            <div className="text-[11px] text-inkSecondary flex items-center justify-between px-1">
               <span>
-                Calculated energy: <strong>{macroCalories} kcal</strong> (4P + 4C + 9F)
+                Calculated energy: <strong className="text-ink">{macroCalories} kcal</strong> (4P + 4C + 9F)
               </span>
-              <span className="text-emerald-700 font-semibold">
+              <span className="text-status-success-fg font-semibold">
                 ✓ Compatible within &plusmn;{targetTolerance}%
               </span>
             </div>
@@ -199,30 +220,31 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
           {/* Tolerance */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <label htmlFor="plan-target-tolerance" className="block text-xs font-semibold text-ink uppercase tracking-wider">
                 Target Tolerance
               </label>
-              <span className="text-xs font-bold text-indigo-600">&plusmn;{targetTolerance}%</span>
+              <span className="text-xs font-bold text-brand">&plusmn;{targetTolerance}%</span>
             </div>
             <select
+              id="plan-target-tolerance"
               value={targetTolerance}
               onChange={(e) => setTargetTolerance(parseFloat(e.target.value) || 10)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
             >
               <option value="10">&plusmn;10% (Default - Strict)</option>
               <option value="12">&plusmn;12% (Balanced)</option>
               <option value="15">&plusmn;15% (Flexible)</option>
             </select>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-inkSecondary mt-1">
               Allows planner to fit wholesome staple foods without exceeding upper limits.
             </p>
           </div>
 
           {/* Meal Categories */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+            <span className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
               Daily Meal Structure
-            </label>
+            </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {['breakfast', 'lunch', 'dinner', 'snacks'].map((cat) => (
                 <button
@@ -231,8 +253,8 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
                   onClick={() => toggleCategory(cat)}
                   className={`py-2 px-3 text-xs font-medium rounded-lg border text-center capitalize transition-colors ${
                     enabledCategories.includes(cat)
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold'
-                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                      ? 'bg-brand/10 border-brand text-brand font-semibold'
+                      : 'bg-surface border-edge text-inkSecondary hover:bg-surfaceMuted'
                   }`}
                 >
                   {cat}
@@ -243,15 +265,15 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
 
           {/* Simplicity & Variety */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+            <span className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1.5">
               Meal Structure & Routine
-            </label>
+            </span>
             <div className="grid grid-cols-2 gap-3">
               <label
                 className={`p-3 rounded-xl border cursor-pointer text-left transition-colors ${
                   simplicityPreference === 'simple'
-                    ? 'bg-indigo-50/70 border-indigo-400'
-                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                    ? 'bg-brand/10 border-brand'
+                    : 'bg-surface border-edge hover:bg-surfaceMuted'
                 }`}
               >
                 <input
@@ -262,8 +284,8 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
                   onChange={() => setSimplicityPreference('simple')}
                   className="sr-only"
                 />
-                <div className="text-xs font-bold text-slate-800">Simple & Efficient</div>
-                <div className="text-[11px] text-slate-500 mt-1 leading-snug">
+                <div className="text-xs font-bold text-ink">Simple & Efficient</div>
+                <div className="text-[11px] text-inkSecondary mt-1 leading-snug">
                   Reuses fresh ingredients and staples across alternating days for simpler prep and lower waste.
                 </div>
               </label>
@@ -271,8 +293,8 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
               <label
                 className={`p-3 rounded-xl border cursor-pointer text-left transition-colors ${
                   simplicityPreference === 'varied'
-                    ? 'bg-indigo-50/70 border-indigo-400'
-                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                    ? 'bg-brand/10 border-brand'
+                    : 'bg-surface border-edge hover:bg-surfaceMuted'
                 }`}
               >
                 <input
@@ -283,8 +305,8 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
                   onChange={() => setSimplicityPreference('varied')}
                   className="sr-only"
                 />
-                <div className="text-xs font-bold text-slate-800">Maximum Variety</div>
-                <div className="text-[11px] text-slate-500 mt-1 leading-snug">
+                <div className="text-xs font-bold text-ink">Maximum Variety</div>
+                <div className="text-[11px] text-inkSecondary mt-1 leading-snug">
                   Prioritizes distinct recipe choices each day of the week.
                 </div>
               </label>
@@ -293,30 +315,32 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
 
           {/* Disliked Foods */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="plan-disliked-foods" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Disliked Foods / Exclusions
             </label>
             <input
+              id="plan-disliked-foods"
               type="text"
               placeholder="e.g. olives, mushrooms (comma-separated)"
               value={dislikedFoodsStr}
               onChange={(e) => setDislikedFoodsStr(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
-            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-              Uses exact word matching. Excluding <code className="text-slate-700 bg-slate-100 px-1 rounded">olives</code> will strictly exclude olives but will <span className="font-semibold text-slate-700">not</span> exclude olive oil.
+            <p className="text-[11px] text-inkSecondary mt-1 leading-normal">
+              Uses exact word matching. Excluding <code className="text-ink bg-surfaceMuted px-1 rounded">olives</code> will strictly exclude olives but will <span className="font-semibold text-ink">not</span> exclude olive oil.
             </p>
           </div>
 
           {/* Max Cooking Time */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="plan-max-cooking-time" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Max Total Cooking Time (optional)
             </label>
             <select
+              id="plan-max-cooking-time"
               value={maxCookingTime}
               onChange={(e) => setMaxCookingTime(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
             >
               <option value="">No limit</option>
               <option value="15">Quick (under 15 min)</option>
@@ -325,18 +349,18 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
             </select>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+          <div className="pt-4 border-t border-edge flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-inkSecondary bg-surfaceMuted hover:bg-surfaceRaised rounded-lg border border-edge transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+              className="px-5 py-2 text-sm font-semibold text-white bg-brand hover:bg-brandHover rounded-lg shadow-xs transition-colors disabled:opacity-50"
             >
               {loading ? 'Generating Plan...' : 'Generate 7-Day Plan'}
             </button>
@@ -346,4 +370,3 @@ export function PlanGenerationModal({ goals, onClose, onSuccess }: PlanGeneratio
     </div>
   )
 }
-

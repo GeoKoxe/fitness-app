@@ -86,14 +86,14 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
   const selectedDay = activePlan?.days.find((d) => d.day_number === selectedDayNumber) || activePlan?.days[0]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {/* Toast Notification */}
       {notification && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium rounded-xl flex items-center justify-between shadow-xs">
+        <div role="status" className="p-3.5 bg-status-success dark:bg-darkSurface border border-border-card text-status-success-fg dark:text-emerald-400 text-sm font-medium rounded-2xl flex items-center justify-between shadow-xs">
           <span>{notification}</span>
           <button
             onClick={() => setNotification(null)}
-            className="text-emerald-600 hover:text-emerald-900 text-xs font-bold ml-3"
+            className="text-xs font-bold ml-3 cursor-pointer hover:underline"
           >
             ✕
           </button>
@@ -101,11 +101,11 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
       )}
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium rounded-xl flex items-center justify-between shadow-xs">
+        <div role="alert" className="p-3.5 bg-status-error dark:bg-darkSurface border border-border-card text-alert dark:text-darkCoral text-sm font-medium rounded-2xl flex items-center justify-between shadow-xs">
           <span>{error}</span>
           <button
             onClick={() => setError(null)}
-            className="text-rose-600 hover:text-rose-900 text-xs font-bold ml-3"
+            className="text-xs font-bold ml-3 cursor-pointer hover:underline"
           >
             ✕
           </button>
@@ -113,30 +113,30 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
       )}
 
       {/* Top Banner / Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface dark:bg-darkSurface p-5 rounded-2xl shadow-xs border border-sand dark:border-darkBorder transition-colors motion-reduce:transition-none">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-xl font-bold text-slate-800">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-xl font-bold text-ink dark:text-darkInk">
               {activePlan ? activePlan.name : 'Personalized Meal Planner'}
             </h2>
             {activePlan && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
                 Active 7-Day Plan
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-1">
             {activePlan
               ? `${activePlan.start_date} to ${activePlan.end_date} • Deterministic macro targeting`
               : 'Generate a 7-day personalized meal plan tailored to your nutritional goals.'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setShowDislikedModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
             title="Manage disliked ingredients"
           >
             🚫 Disliked Foods
@@ -147,14 +147,14 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
               <button
                 type="button"
                 onClick={() => setShowShoppingList(!showShoppingList)}
-                className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-2 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               >
                 🛒 {showShoppingList ? 'View Plan' : 'Shopping List'}
               </button>
               <button
                 type="button"
                 onClick={handleDeletePlan}
-                className="px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition-colors"
+                className="px-3 py-2 text-xs font-semibold text-alert dark:text-darkCoral hover:bg-mist/30 dark:hover:bg-darkMist/30 rounded-xl border border-alert/30 dark:border-darkCoral/30 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert"
               >
                 Delete Plan
               </button>
@@ -164,7 +164,7 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
           <button
             type="button"
             onClick={() => setShowGenerateModal(true)}
-            className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-semibold text-white bg-midnight hover:opacity-95 dark:bg-darkMidnight dark:text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
           >
             ✨ {activePlan ? 'Regenerate Week' : 'Generate 7-Day Plan'}
           </button>
@@ -172,21 +172,22 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-sm text-slate-400 bg-white rounded-2xl border border-slate-200">
-          Loading meal plan...
+        <div className="py-16 text-center text-sm text-inkSecondary dark:text-darkInkSecondary bg-surface dark:bg-darkSurface rounded-2xl border border-sand dark:border-darkBorder">
+          <div className="inline-block animate-spin w-8 h-8 border-3 border-midnight dark:border-darkMidnight border-t-transparent rounded-full mb-3" />
+          <p className="font-medium">Loading meal plan...</p>
         </div>
       ) : !activePlan ? (
-        <div className="p-10 text-center bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="p-10 text-center bg-surface dark:bg-darkSurface rounded-2xl border border-sand dark:border-darkBorder shadow-xs space-y-4">
           <div className="text-4xl">🥗</div>
-          <h3 className="text-base font-bold text-slate-800">No active meal plan found</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
+          <h3 className="text-base font-bold text-ink dark:text-darkInk">No active meal plan found</h3>
+          <p className="text-xs text-inkSecondary dark:text-darkInkSecondary max-w-md mx-auto leading-relaxed">
             Create a custom 7-day plan matching your daily calorie and protein goals. Our offline rule-based planner
             selects wholesome staple recipes with minimal food waste.
           </p>
           <button
             type="button"
             onClick={() => setShowGenerateModal(true)}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors"
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-midnight hover:opacity-95 dark:bg-darkMidnight dark:text-white rounded-xl shadow-xs transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
           >
             Generate Your First Meal Plan
           </button>
@@ -214,21 +215,21 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
                   key={day.day_number}
                   type="button"
                   onClick={() => setSelectedDayNumber(day.day_number)}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 hover:bg-slate-50/50'
+                      ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white border-midnight dark:border-darkMidnight shadow-xs'
+                      : 'bg-surface dark:bg-darkSurface border-sand dark:border-darkBorder text-ink dark:text-darkInk hover:bg-canvas dark:hover:bg-darkCanvas'
                   }`}
                 >
-                  <div className={`text-xs font-bold ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
+                  <div className={`text-xs font-bold ${isSelected ? 'text-sand dark:text-white' : 'text-inkSecondary dark:text-darkInkSecondary'}`}>
                     Day {day.day_number}
                   </div>
-                  <div className={`text-sm font-bold truncate ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                  <div className={`text-sm font-bold truncate ${isSelected ? 'text-white' : 'text-ink dark:text-darkInk'}`}>
                     {day.day_name.slice(0, 3)}
                   </div>
                   <div
                     className={`text-[11px] font-semibold mt-1.5 ${
-                      isSelected ? 'text-indigo-200' : 'text-slate-600'
+                      isSelected ? 'text-sand/90 dark:text-white/90' : 'text-inkSecondary dark:text-darkInkSecondary'
                     }`}
                   >
                     {day.total_calories} kcal
@@ -240,24 +241,24 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
 
           {/* Selected Day Content */}
           {selectedDay && (
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 gap-3">
+            <div className="bg-surface dark:bg-darkSurface rounded-2xl p-5 border border-sand dark:border-darkBorder space-y-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-sand/70 dark:border-darkBorder/70 gap-3">
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">
+                  <h3 className="text-base font-bold text-ink dark:text-darkInk">
                     Day {selectedDay.day_number} — {selectedDay.day_name} ({selectedDay.plan_date})
                   </h3>
-                  <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
+                  <div className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5 flex flex-wrap gap-3">
                     <span>
-                      Planned: <strong className="text-slate-800">{selectedDay.total_calories} kcal</strong>
+                      Planned: <strong className="text-ink dark:text-darkInk">{selectedDay.total_calories} kcal</strong>
                     </span>
                     <span>
-                      Protein: <strong className="text-indigo-600">{selectedDay.total_protein}g</strong>
+                      Protein: <strong className="text-ink dark:text-darkInk font-semibold">{selectedDay.total_protein}g</strong>
                     </span>
                     <span>
-                      Carbs: <strong className="text-amber-600">{selectedDay.total_carbs}g</strong>
+                      Carbs: <strong className="text-amber-800 dark:text-darkButter font-semibold">{selectedDay.total_carbs}g</strong>
                     </span>
                     <span>
-                      Fat: <strong className="text-rose-600">{selectedDay.total_fat}g</strong>
+                      Fat: <strong className="text-ink dark:text-darkInk font-semibold">{selectedDay.total_fat}g</strong>
                     </span>
                   </div>
                 </div>
@@ -265,7 +266,7 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
                 <button
                   type="button"
                   onClick={() => setDayToLog(selectedDay.day_number)}
-                  className="px-3.5 py-1.5 text-xs font-semibold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-300 rounded-lg shadow-2xs transition-colors self-start sm:self-auto"
+                  className="px-3.5 py-1.5 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl shadow-2xs transition cursor-pointer self-start sm:self-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
                 >
                   ✓ Log All Meals for This Day
                 </button>
@@ -356,4 +357,3 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
     </div>
   )
 }
-

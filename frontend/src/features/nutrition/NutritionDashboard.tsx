@@ -19,7 +19,7 @@ function getTodayString(): string {
   return new Date(d.getTime() - offset).toISOString().split('T')[0]!
 }
 
-type NutritionSubTab = 'log' | 'planner' | 'recipes' | 'catalogue' | 'reports'
+export type NutritionSubTab = 'log' | 'planner' | 'recipes' | 'catalogue' | 'reports'
 
 export function NutritionDashboard() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString)
@@ -110,37 +110,104 @@ export function NutritionDashboard() {
     day: 'numeric',
   })
 
+  const isToday = selectedDate === getTodayString()
+
+  const tabs: { id: NutritionSubTab; label: string }[] = [
+    { id: 'log', label: 'Daily Log' },
+    { id: 'planner', label: 'Meal Planner' },
+    { id: 'recipes', label: 'Recipes' },
+    { id: 'catalogue', label: 'My Foods' },
+    { id: 'reports', label: 'Reports & Trends' },
+  ]
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      {/* Top Controls & Sub-navigation */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        {/* Date Navigator (visible on Daily Log tab) */}
-        {activeSubTab === 'log' ? (
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-xs">
+    <div className="w-full text-left space-y-6">
+      {/* Section Header Card */}
+      <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-left transition-colors motion-reduce:transition-none">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-darkInk">
+              Nutrition &amp; Meals
+            </h1>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
+              Metric (kcal / g / mg)
+            </span>
+          </div>
+          <p className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-1">
+            Log daily meals, monitor macronutrients against targets, and plan weekly nutrition.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowBackupModal(true)}
+            className="px-3.5 py-2 text-xs font-semibold rounded-xl border border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist transition cursor-pointer shadow-xs flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle"
+            title="Backup & Restore Nutrition Data"
+          >
+            <svg className="w-4 h-4 text-midnight dark:text-darkMidnight" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            <span>Backup</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Sub-navigation Tabs */}
+      <div
+        role="tablist"
+        aria-label="Nutrition Sections"
+        className="flex border-b border-sand dark:border-darkBorder gap-2 overflow-x-auto"
+      >
+        {tabs.map((tab) => {
+          const isActive = activeSubTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`pb-3 px-4 text-sm font-semibold transition cursor-pointer motion-reduce:transition-none border-b-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle ${
+                isActive
+                  ? 'border-midnight text-midnight dark:border-darkMidnight dark:text-darkMidnight'
+                  : 'border-transparent text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Date Navigator (Visible on Daily Log tab) */}
+      {activeSubTab === 'log' && (
+        <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-3 sm:p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => changeDateByDays(-1)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+              className="p-2 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder hover:bg-mist/50 dark:hover:bg-darkMist text-ink dark:text-darkInk transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               aria-label="Previous day"
             >
               ◀
             </button>
 
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-              className="text-xs font-semibold px-2 py-1 rounded-lg bg-transparent border-0 text-slate-800 dark:text-slate-200 focus:ring-0 cursor-pointer"
-            />
-
-            <span className="text-xs text-slate-400 font-medium hidden md:inline">
-              ({formattedDate})
-            </span>
+            <div className="relative">
+              <input
+                id="nutrition-date-picker"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle cursor-pointer"
+                aria-label="Selected date"
+              />
+            </div>
 
             <button
               type="button"
               onClick={() => changeDateByDays(1)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+              className="p-2 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder hover:bg-mist/50 dark:hover:bg-darkMist text-ink dark:text-darkInk transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               aria-label="Next day"
             >
               ▶
@@ -149,91 +216,28 @@ export function NutritionDashboard() {
             <button
               type="button"
               onClick={() => setSelectedDate(getTodayString())}
-              className="ml-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition"
+              disabled={isToday}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle ${
+                isToday
+                  ? 'bg-mist/30 dark:bg-darkMist/30 border-sand/50 dark:border-darkBorder/50 text-inkSecondary dark:text-darkInkSecondary cursor-default'
+                  : 'bg-canvas dark:bg-darkCanvas border-sand dark:border-darkBorder text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist'
+              }`}
             >
               Today
             </button>
           </div>
-        ) : (
-          <div />
-        )}
 
-        {/* View Switcher & Backup */}
-        <div className="flex items-center gap-2">
-          <div className="flex flex-wrap rounded-xl bg-slate-200 dark:bg-slate-800 p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('log')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                activeSubTab === 'log'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Daily Log
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('planner')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                activeSubTab === 'planner'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Meal Planner
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('recipes')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                activeSubTab === 'recipes'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Recipes
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('catalogue')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                activeSubTab === 'catalogue'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              My Foods
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('reports')}
-              className={`px-3 py-1.5 rounded-lg transition ${
-                activeSubTab === 'reports'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Reports & Trends
-            </button>
+          <div className="text-xs font-medium text-inkSecondary dark:text-darkInkSecondary">
+            Viewing: <strong className="text-ink dark:text-darkInk">{formattedDate}</strong>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowBackupModal(true)}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition shadow-xs text-xs font-medium flex items-center gap-1.5"
-            title="Backup & Restore Nutrition Data"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
-            <span className="hidden sm:inline">Backup</span>
-          </button>
         </div>
-      </div>
+      )}
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-2xl text-xs text-left">
+        <div
+          role="alert"
+          className="p-4 rounded-2xl bg-status-error dark:bg-darkSurface border border-border-card text-alert dark:text-darkCoral text-xs font-medium"
+        >
           {error}
         </div>
       )}
@@ -251,9 +255,9 @@ export function NutritionDashboard() {
           )}
 
           {loading && !summary ? (
-            <div className="p-12 text-center text-xs text-slate-400">
-              <div className="inline-block animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mb-2" />
-              <p>Loading daily meal log...</p>
+            <div className="p-12 text-center text-xs text-inkSecondary dark:text-darkInkSecondary">
+              <div className="inline-block animate-spin w-8 h-8 border-3 border-midnight dark:border-darkMidnight border-t-transparent rounded-full mb-3" />
+              <p className="font-medium">Loading daily meal log...</p>
             </div>
           ) : (
             <div className="space-y-4">

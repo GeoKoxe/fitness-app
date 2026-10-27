@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PlannedMeal } from '../../types/mealPlan'
 import { mealPlanService } from '../../services/mealPlanService'
 
@@ -23,6 +23,14 @@ export function LogPlannedMealModal({
   const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const isDayMode = !meal && dayNumber != null
   const isIncompleteMeal = Boolean(meal && !meal.recipe_id && meal.items.length === 0)
@@ -51,31 +59,37 @@ export function LogPlannedMealModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 text-left border border-slate-100">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="log-planned-meal-title"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div className="bg-surface rounded-2xl shadow-xl max-w-md w-full p-6 text-left border border-edge">
+        <div className="flex items-center justify-between pb-3 border-b border-edge">
           <div>
-            <h3 className="text-lg font-semibold text-slate-800">
+            <h3 id="log-planned-meal-title" className="text-lg font-bold text-ink">
               {isDayMode ? `Log Meals for ${dayName || 'Day'}` : `Log ${meal?.name}`}
             </h3>
-            <p className="text-xs text-slate-500">Record planned nutrition into your actual food diary</p>
+            <p className="text-xs text-inkSecondary">Record planned nutrition into your actual food diary</p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
+            aria-label="Close dialog"
+            className="text-inkSecondary hover:text-ink rounded-lg p-1.5 hover:bg-surfaceMuted transition-colors"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-lg">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border text-status-danger-fg text-sm rounded-lg">
             {error}
           </div>
         )}
 
         {isIncompleteMeal && (
-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+          <div className="mt-4 p-3 bg-status-warning-bg border border-status-warning-border text-status-warning-fg text-xs rounded-lg">
             ⚠️ <strong>Cannot Log Incomplete Meal:</strong> This slot has no recipe or ingredients assigned.
             Please use <strong>Replace</strong> to choose a recipe before logging it to your food diary.
           </div>
@@ -84,35 +98,36 @@ export function LogPlannedMealModal({
         <div className="mt-4 space-y-4">
           {/* Target Date Picker */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+            <label htmlFor="log-target-date-input" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Log for Date
             </label>
             <input
+              id="log-target-date-input"
               type="date"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
 
           {/* Items Preview */}
           <div>
-            <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+            <div className="text-xs font-semibold text-ink uppercase tracking-wider mb-2">
               Items to be recorded:
             </div>
             {meal ? (
-              <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 max-h-40 overflow-y-auto divide-y divide-slate-100">
+              <div className="bg-surfaceMuted rounded-lg p-3 border border-edge max-h-40 overflow-y-auto divide-y divide-edge">
                 {meal.items.map((it) => (
-                  <div key={it.id} className="py-1.5 flex justify-between text-xs text-slate-700">
-                    <span className="font-medium text-slate-800">{it.food_name || 'Ingredient'}</span>
-                    <span className="text-slate-500">
+                  <div key={it.id} className="py-1.5 flex justify-between text-xs text-ink">
+                    <span className="font-medium text-ink">{it.food_name || 'Ingredient'}</span>
+                    <span className="text-inkSecondary">
                       {it.quantity} {it.unit} (~{it.calories_kcal} kcal)
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs text-slate-600">
+              <div className="bg-surfaceMuted rounded-lg p-3 border border-edge text-xs text-inkSecondary">
                 All planned meals and ingredients for {dayName || 'this day'} will be logged for {targetDate}.
               </div>
             )}
@@ -125,25 +140,25 @@ export function LogPlannedMealModal({
               id="skipDuplicates"
               checked={skipDuplicates}
               onChange={(e) => setSkipDuplicates(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="mt-0.5 h-4 w-4 rounded border-edge text-brand focus:ring-brand accent-brand"
             />
-            <label htmlFor="skipDuplicates" className="text-xs text-slate-600 leading-snug cursor-pointer">
-              <span className="font-medium text-slate-800">Prevent duplicate entries:</span> Skip ingredients that
+            <label htmlFor="skipDuplicates" className="text-xs text-inkSecondary leading-snug cursor-pointer">
+              <span className="font-semibold text-ink">Prevent duplicate entries:</span> Skip ingredients that
               have already been recorded in your food diary for this date and category.
             </label>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+          <div className="bg-status-warning-bg border border-status-warning-border rounded-lg p-3 text-xs text-status-warning-fg">
             <strong>Note:</strong> Planned meals never enter your food diary automatically. Confirming will create
             official diary entries with calculated nutrition snapshots.
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 pt-3 border-t border-slate-100">
+        <div className="mt-6 flex justify-end gap-3 pt-3 border-t border-edge">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-inkSecondary bg-surfaceMuted hover:bg-surfaceRaised rounded-lg border border-edge transition-colors"
           >
             Cancel
           </button>
@@ -151,7 +166,7 @@ export function LogPlannedMealModal({
             type="button"
             onClick={handleConfirm}
             disabled={loading || isIncompleteMeal}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-semibold text-white bg-brand hover:bg-brandHover rounded-lg shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Logging...' : 'Confirm & Log to Diary'}
           </button>
@@ -160,4 +175,3 @@ export function LogPlannedMealModal({
     </div>
   )
 }
-

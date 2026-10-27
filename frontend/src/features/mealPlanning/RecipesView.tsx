@@ -87,12 +87,12 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface dark:bg-darkSurface p-5 rounded-2xl shadow-xs border border-sand dark:border-darkBorder transition-colors motion-reduce:transition-none">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Recipe Library</h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <h2 className="text-xl font-bold text-ink dark:text-darkInk">Recipe Library</h2>
+          <p className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-1">
             Curated staple recipes verified with USDA catalogue ingredients, plus your own custom meals.
           </p>
         </div>
@@ -100,14 +100,14 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
         <button
           type="button"
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 self-start sm:self-auto"
+          className="px-4 py-2 text-xs font-semibold text-white bg-midnight hover:opacity-95 dark:bg-darkMidnight dark:text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 self-start sm:self-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
         >
           + New Recipe
         </button>
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl">
+        <div role="alert" className="p-4 bg-status-error dark:bg-darkSurface border border-border-card text-alert dark:text-darkCoral text-xs font-medium rounded-2xl">
           {error}
         </div>
       )}
@@ -121,10 +121,10 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
               setOnlyPlanRecipes(false)
               setSelectedCategory('all')
             }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer whitespace-nowrap ${
               !onlyPlanRecipes && selectedCategory === 'all'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white shadow-xs'
+                : 'bg-surface dark:bg-darkSurface text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk border border-sand dark:border-darkBorder'
             }`}
           >
             All Recipes
@@ -135,10 +135,10 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
             onClick={() => {
               setOnlyPlanRecipes(!onlyPlanRecipes)
             }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               onlyPlanRecipes
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'
+                ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white shadow-xs'
+                : 'bg-surface dark:bg-darkSurface text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk border border-sand dark:border-darkBorder'
             }`}
           >
             <span>📅</span>
@@ -155,10 +155,10 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
                   setOnlyPlanRecipes(false)
                   setSelectedCategory(c.id)
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer whitespace-nowrap ${
                   !onlyPlanRecipes && selectedCategory === c.id
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white shadow-xs'
+                    : 'bg-surface dark:bg-darkSurface text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk border border-sand dark:border-darkBorder'
                 }`}
               >
                 {c.label}
@@ -172,18 +172,19 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
             placeholder="Search recipes or tags..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder rounded-xl text-xs text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
           />
         </div>
       </div>
 
       {/* Recipes Grid */}
       {loading ? (
-        <div className="py-16 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
-          Loading recipes...
+        <div className="py-16 text-center text-xs text-inkSecondary dark:text-darkInkSecondary bg-surface dark:bg-darkSurface rounded-2xl border border-sand dark:border-darkBorder">
+          <div className="inline-block animate-spin w-8 h-8 border-3 border-midnight dark:border-darkMidnight border-t-transparent rounded-full mb-3" />
+          <p className="font-medium">Loading recipes...</p>
         </div>
       ) : displayedRecipes.length === 0 ? (
-        <div className="py-16 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
+        <div className="py-16 text-center text-xs text-inkSecondary dark:text-darkInkSecondary bg-surface dark:bg-darkSurface rounded-2xl border border-sand dark:border-darkBorder">
           {onlyPlanRecipes
             ? "No recipes in this week's plan yet. Generate a 7-day meal plan in the Meal Planner to see its recipes here."
             : 'No recipes found matching your filters.'}
@@ -194,46 +195,46 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
             <div
               key={r.id}
               onClick={() => setInspectRecipeId(r.id)}
-              className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              className="bg-surface dark:bg-darkSurface rounded-2xl shadow-xs border border-sand dark:border-darkBorder p-5 hover:border-sand/90 dark:hover:border-darkBorder transition cursor-pointer flex flex-col justify-between"
             >
               <div>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-canvas dark:bg-darkCanvas text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
                     {r.meal_category}
                   </span>
                   <div className="flex items-center gap-1.5">
                     {planRecipeIds.has(r.id) && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
                         In Active Plan
                       </span>
                     )}
                     {r.is_built_in ? (
-                      <span className="text-[10px] font-semibold text-emerald-600">Built-in Staple</span>
+                      <span className="text-[10px] font-semibold text-status-success-fg dark:text-emerald-400">Built-in Staple</span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-indigo-600">Custom Recipe</span>
+                      <span className="text-[10px] font-semibold text-midnight dark:text-darkMidnight">Custom Recipe</span>
                     )}
                   </div>
                 </div>
 
-                <h3 className="text-base font-bold text-slate-800 line-clamp-1">{r.name}</h3>
+                <h3 className="text-base font-bold text-ink dark:text-darkInk line-clamp-1">{r.name}</h3>
                 {r.description && (
-                  <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                  <p className="text-xs text-inkSecondary dark:text-darkInkSecondary line-clamp-2 mt-1 leading-relaxed">
                     {r.description}
                   </p>
                 )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between text-xs text-slate-700">
-                  <span className="font-bold text-slate-900">{r.per_serving_calories} kcal</span>
-                  <div className="flex gap-2 text-slate-500 text-[11px]">
+              <div className="mt-4 pt-3 border-t border-sand/60 dark:border-darkBorder/60">
+                <div className="flex items-center justify-between text-xs text-inkSecondary dark:text-darkInkSecondary">
+                  <span className="font-extrabold text-ink dark:text-darkInk">{r.per_serving_calories} kcal</span>
+                  <div className="flex gap-2 text-[11px] font-semibold">
                     <span>{r.per_serving_protein}g P</span>
-                    <span>{r.per_serving_carbs}g C</span>
+                    <span className="text-amber-800 dark:text-darkButter">{r.per_serving_carbs}g C</span>
                     <span>{r.per_serving_fat}g F</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2">
+                <div className="flex items-center justify-between text-[11px] text-inkSecondary dark:text-darkInkSecondary mt-2">
                   <span>🕒 {r.prep_time_minutes + r.cook_time_minutes} min</span>
                   <span>{r.ingredients_count} ingredients</span>
                 </div>

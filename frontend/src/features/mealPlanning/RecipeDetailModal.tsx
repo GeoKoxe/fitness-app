@@ -16,6 +16,14 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
     const fetchRecipe = async () => {
       setLoading(true)
       try {
@@ -49,63 +57,73 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
   const ratio = recipe && recipe.servings > 0 ? servingsMultiplier / recipe.servings : 1
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 text-left border border-slate-100 max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recipe-detail-title"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div className="bg-surface rounded-2xl shadow-xl max-w-xl w-full p-6 text-left border border-edge max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-3 border-b border-edge">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-slate-800">{recipe?.name || 'Recipe Details'}</h3>
+              <h3 id="recipe-detail-title" className="text-lg font-bold text-ink">
+                {recipe?.name || 'Recipe Details'}
+              </h3>
               {recipe?.is_built_in && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-surfaceMuted text-inkSecondary border border-edge uppercase">
                   Built-in
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 capitalize">
+            <p className="text-xs text-inkSecondary capitalize">
               {recipe?.meal_category} • {recipe ? (recipe.prep_time_minutes || 0) + (recipe.cook_time_minutes || 0) : 0} min total time
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors"
+            aria-label="Close dialog"
+            className="text-inkSecondary hover:text-ink rounded-lg p-1 hover:bg-surfaceMuted transition-colors"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border text-status-danger-fg text-xs rounded-lg">
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Loading recipe details...</div>
+          <div className="py-12 text-center text-xs text-inkMuted">Loading recipe details...</div>
         ) : recipe ? (
           <div className="mt-4 space-y-5">
             {/* Description */}
             {recipe.description && (
-              <p className="text-xs text-slate-600 italic bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <p className="text-xs text-inkSecondary italic bg-surfaceMuted p-3 rounded-lg border border-edge">
                 "{recipe.description}"
               </p>
             )}
 
             {/* Servings Adjuster */}
-            <div className="flex items-center justify-between bg-indigo-50/60 p-3 rounded-xl border border-indigo-100">
-              <span className="text-xs font-semibold text-indigo-900">Servings Scale:</span>
+            <div className="flex items-center justify-between bg-brand/10 p-3 rounded-xl border border-brand/20">
+              <span className="text-xs font-semibold text-brand">Servings Scale:</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setServingsMultiplier((s) => Math.max(1, s - 1))}
-                  className="w-7 h-7 bg-white rounded border border-indigo-200 text-indigo-800 font-bold text-xs"
+                  aria-label="Decrease servings multiplier"
+                  className="w-7 h-7 bg-surface rounded border border-edge text-ink font-bold text-xs hover:bg-surfaceMuted transition-colors"
                 >
                   -
                 </button>
-                <span className="text-sm font-bold text-indigo-900 px-2">{servingsMultiplier}</span>
+                <span className="text-sm font-bold text-ink px-2">{servingsMultiplier}</span>
                 <button
                   type="button"
                   onClick={() => setServingsMultiplier((s) => s + 1)}
-                  className="w-7 h-7 bg-white rounded border border-indigo-200 text-indigo-800 font-bold text-xs"
+                  aria-label="Increase servings multiplier"
+                  className="w-7 h-7 bg-surface rounded border border-edge text-ink font-bold text-xs hover:bg-surfaceMuted transition-colors"
                 >
                   +
                 </button>
@@ -113,28 +131,28 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
             </div>
 
             {/* Scaled Macro Highlights */}
-            <div className="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+            <div className="grid grid-cols-4 gap-2 bg-surfaceMuted p-3 rounded-xl border border-edge text-center">
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Calories</div>
-                <div className="text-sm font-bold text-slate-900">
+                <div className="text-[10px] uppercase font-bold text-inkSecondary">Calories</div>
+                <div className="text-sm font-bold text-ink">
                   {Math.round(recipe.per_serving_calories * servingsMultiplier)} kcal
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Protein</div>
-                <div className="text-sm font-bold text-indigo-600">
+                <div className="text-[10px] uppercase font-bold text-inkSecondary">Protein</div>
+                <div className="text-sm font-bold text-brand">
                   {(recipe.per_serving_protein * servingsMultiplier).toFixed(1)}g
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Carbs</div>
-                <div className="text-sm font-bold text-amber-600">
+                <div className="text-[10px] uppercase font-bold text-inkSecondary">Carbs</div>
+                <div className="text-sm font-bold text-amber-700 dark:text-amber-400">
                   {(recipe.per_serving_carbs * servingsMultiplier).toFixed(1)}g
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-400">Fat</div>
-                <div className="text-sm font-bold text-rose-600">
+                <div className="text-[10px] uppercase font-bold text-inkSecondary">Fat</div>
+                <div className="text-sm font-bold text-status-danger-fg">
                   {(recipe.per_serving_fat * servingsMultiplier).toFixed(1)}g
                 </div>
               </div>
@@ -142,27 +160,27 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
 
             {/* Ingredients Table */}
             <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2">
                 Ingredients ({recipe.ingredients.length})
               </h4>
-              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+              <div className="border border-edge rounded-xl overflow-hidden divide-y divide-edge">
                 {recipe.ingredients.map((ing) => {
                   const scaledQty = Math.round(ing.quantity * ratio * 10) / 10
                   const scaledCal = ing.calories_kcal != null ? Math.round(ing.calories_kcal * ratio) : null
                   return (
-                    <div key={ing.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50">
+                    <div key={ing.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-surfaceMuted transition-colors">
                       <div>
-                        <span className="font-semibold text-slate-800">{ing.food_name || 'Ingredient'}</span>
+                        <span className="font-semibold text-ink">{ing.food_name || 'Ingredient'}</span>
                         {ing.preparation_notes && (
-                          <span className="text-[10px] text-slate-400 ml-1.5">({ing.preparation_notes})</span>
+                          <span className="text-[10px] text-inkSecondary ml-1.5">({ing.preparation_notes})</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-medium text-slate-700">
+                        <span className="font-medium text-ink">
                           {scaledQty} {ing.unit}
                         </span>
                         {scaledCal != null && (
-                          <span className="text-slate-400 w-16 text-right">~{scaledCal} kcal</span>
+                          <span className="text-inkSecondary w-16 text-right">~{scaledCal} kcal</span>
                         )}
                       </div>
                     </div>
@@ -174,10 +192,10 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
             {/* Instructions */}
             {recipe.instructions && (
               <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                <h4 className="text-xs font-bold text-ink uppercase tracking-wider mb-2">
                   Instructions
                 </h4>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-700 whitespace-pre-line leading-relaxed">
+                <div className="bg-surfaceMuted p-3 rounded-xl border border-edge text-xs text-ink whitespace-pre-line leading-relaxed">
                   {recipe.instructions}
                 </div>
               </div>
@@ -186,13 +204,13 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
         ) : null}
 
         {/* Footer */}
-        <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <div className="mt-6 pt-3 border-t border-edge flex items-center justify-between">
           {recipe && !recipe.is_built_in ? (
             <button
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="text-xs font-medium text-rose-600 hover:text-rose-800"
+              className="text-xs font-medium text-status-danger-fg hover:underline"
             >
               {deleting ? 'Deleting...' : 'Delete Recipe'}
             </button>
@@ -203,7 +221,7 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            className="px-4 py-2 text-xs font-medium text-inkSecondary bg-surfaceMuted hover:bg-surfaceRaised rounded-lg border border-edge transition-colors"
           >
             Close
           </button>
@@ -212,4 +230,3 @@ export function RecipeDetailModal({ recipeId, onClose, onRecipeDeleted }: Recipe
     </div>
   )
 }
-

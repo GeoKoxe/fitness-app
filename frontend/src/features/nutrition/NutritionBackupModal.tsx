@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import type { AnyBackupPayload, SystemBackupV2, LegacyNutritionBackup } from '../../types/backup'
 import { backupService } from '../../services/backupService'
 
@@ -31,6 +31,15 @@ export function NutritionBackupModal({
   const [previewStats, setPreviewStats] = useState<BackupPreviewStats | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Dismiss on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const handleExport = async () => {
     setIsExporting(true)
@@ -154,34 +163,41 @@ export function NutritionBackupModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="backup-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition-opacity motion-reduce:transition-none"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-left">
-        <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl text-left transition-colors motion-reduce:transition-none"
+      >
+        <div className="flex justify-between items-center pb-4 border-b border-sand dark:border-darkBorder">
           <div>
-            <h2 id="backup-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              System Backup & Restore
+            <h2 id="backup-title" className="text-lg font-bold text-ink dark:text-darkInk">
+              System Backup &amp; Restore
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5">
               Export and restore complete FitPulse nutrition, measurements, and workout data.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
-            aria-label="Close"
+            className="text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk p-1.5 rounded-xl hover:bg-mist/40 dark:hover:bg-darkMist/40 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+            aria-label="Close dialog"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {statusMessage && (
           <div
-            className={`mt-4 p-3 rounded-xl text-xs ${
+            role="alert"
+            className={`mt-4 p-3.5 rounded-xl text-xs font-medium border ${
               statusMessage.type === 'success'
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                ? 'bg-status-success dark:bg-darkSurface text-status-success-fg dark:text-emerald-400 border-border-card'
+                : 'bg-status-error dark:bg-darkSurface text-alert dark:text-darkCoral border-border-card'
             }`}
           >
             {statusMessage.text}
@@ -190,18 +206,18 @@ export function NutritionBackupModal({
 
         <div className="mt-4 space-y-6">
           {/* Export Section */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">
+          <div className="p-4 bg-canvas/60 dark:bg-darkCanvas/60 border border-sand dark:border-darkBorder rounded-2xl space-y-2">
+            <h3 className="text-sm font-bold text-ink dark:text-darkInk">
               Export Complete Backup (v2.0)
             </h3>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-inkSecondary dark:text-darkInkSecondary leading-relaxed">
               Download a single versioned JSON file containing your user profile, body measurements, food catalogue, meal diary, recipes, custom exercises, routines, and workout history.
             </p>
             <button
               type="button"
               disabled={isExporting}
               onClick={handleExport}
-              className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:opacity-90 transition flex items-center justify-center gap-2"
+              className="w-full mt-2 py-2.5 px-4 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -211,38 +227,34 @@ export function NutritionBackupModal({
           </div>
 
           {/* Import Section */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">
+          <div className="pt-4 border-t border-sand dark:border-darkBorder space-y-2">
+            <h3 className="text-sm font-bold text-ink dark:text-darkInk">
               Restore from Backup
             </h3>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-inkSecondary dark:text-darkInkSecondary leading-relaxed">
               Select a FitPulse backup JSON file (v2.0 complete backup or legacy v1.x nutrition backup). Existing records are safely preserved without creating duplicates.
             </p>
             <input
               type="file"
               accept=".json"
               onChange={handleFileChange}
-              className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+              className="w-full text-xs text-inkSecondary dark:text-darkInkSecondary file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border file:border-sand dark:file:border-darkBorder file:text-xs file:font-semibold file:bg-canvas dark:file:bg-darkCanvas file:text-ink dark:file:text-darkInk hover:file:bg-mist/50 cursor-pointer pt-1"
             />
 
             {previewStats && (
-              <div className="mt-3 p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs space-y-2 border border-slate-200 dark:border-slate-700">
+              <div className="mt-3 p-4 bg-canvas/70 dark:bg-darkCanvas/70 rounded-2xl text-xs space-y-3 border border-sand dark:border-darkBorder">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  <span className="font-bold text-ink dark:text-darkInk">
                     Backup Contents Preview
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    previewStats.isV2
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-                  }`}>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
                     {previewStats.isV2 ? `v${previewStats.version} Complete` : `v${previewStats.version} Legacy`}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 dark:text-slate-400">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-inkSecondary dark:text-darkInkSecondary">
                   {previewStats.profileName && (
-                    <div className="col-span-2 font-medium text-slate-700 dark:text-slate-300">
+                    <div className="col-span-2 font-semibold text-ink dark:text-darkInk">
                       Profile: {previewStats.profileName}
                     </div>
                   )}
@@ -275,7 +287,7 @@ export function NutritionBackupModal({
                   type="button"
                   disabled={isImporting}
                   onClick={handleImport}
-                  className="mt-3 w-full py-2.5 px-3 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition flex items-center justify-center gap-1.5"
+                  className="mt-3 w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   {isImporting ? 'Restoring System Data...' : 'Confirm and Restore'}
                 </button>
@@ -284,11 +296,11 @@ export function NutritionBackupModal({
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-right">
+        <div className="mt-6 pt-4 border-t border-sand dark:border-darkBorder text-right">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist transition cursor-pointer"
           >
             Close
           </button>

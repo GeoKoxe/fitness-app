@@ -19,6 +19,14 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
   const [selectedCategory, setSelectedCategory] = useState<string>(meal.meal_category)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   // Check repetition and spacing against activePlan
   const checkConflict = (recipeId: number): string | null => {
     if (!activePlan) return null
@@ -74,25 +82,33 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 text-left border border-slate-100 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="replace-meal-title"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div className="bg-surface rounded-2xl shadow-xl max-w-xl w-full p-6 text-left border border-edge max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between pb-3 border-b border-edge">
           <div>
-            <h3 className="text-base font-semibold text-slate-800">Replace Meal</h3>
-            <p className="text-xs text-slate-500">
-              Select another recipe to replace <span className="font-medium text-slate-700">{meal.name}</span>
+            <h3 id="replace-meal-title" className="text-base font-bold text-ink">
+              Replace Meal
+            </h3>
+            <p className="text-xs text-inkSecondary">
+              Select another recipe to replace <span className="font-semibold text-ink">{meal.name}</span>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors"
+            aria-label="Close dialog"
+            className="text-inkSecondary hover:text-ink rounded-lg p-1 hover:bg-surfaceMuted transition-colors"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-3 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+          <div role="alert" className="mt-3 p-3 bg-status-danger-bg border border-status-danger-border text-status-danger-fg text-xs rounded-lg">
             {error}
           </div>
         )}
@@ -102,14 +118,16 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
           <input
             type="text"
             placeholder="Search recipes or tags..."
+            aria-label="Search recipes"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 px-3 py-1.5 bg-surface border border-edge rounded-lg text-xs text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500"
+            aria-label="Filter category"
+            className="px-3 py-1.5 bg-surface border border-edge rounded-lg text-xs text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
           >
             <option value="all">All Categories</option>
             <option value="breakfast">Breakfast</option>
@@ -120,11 +138,11 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
         </div>
 
         {/* Recipe List */}
-        <div className="mt-4 flex-1 overflow-y-auto divide-y divide-slate-100 pr-1">
+        <div className="mt-4 flex-1 overflow-y-auto divide-y divide-edge pr-1">
           {loading ? (
-            <div className="py-8 text-center text-xs text-slate-400">Loading recipes...</div>
+            <div className="py-8 text-center text-xs text-inkMuted">Loading recipes...</div>
           ) : recipes.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-400">No matching recipes found.</div>
+            <div className="py-8 text-center text-xs text-inkMuted">No matching recipes found.</div>
           ) : (
             recipes.map((r) => {
               const conflict = checkConflict(r.id)
@@ -132,24 +150,24 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
                 <div
                   key={r.id}
                   className={`py-3 flex items-center justify-between px-2 rounded-lg transition-colors group ${
-                    conflict ? 'opacity-60 bg-slate-50/50' : 'hover:bg-slate-50'
+                    conflict ? 'opacity-60 bg-surfaceMuted/50' : 'hover:bg-surfaceMuted'
                   }`}
                 >
                   <div className="pr-3">
-                    <div className="text-sm font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
+                    <div className="text-sm font-semibold text-ink flex items-center gap-2 flex-wrap">
                       <span>{r.name}</span>
                       {r.is_built_in && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-surfaceMuted text-inkSecondary border border-edge">
                           Built-in
                         </span>
                       )}
                       {conflict && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-status-warning-bg text-status-warning-fg border border-status-warning-border">
                           ⚠️ {conflict}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5 flex gap-3">
+                    <div className="text-xs text-inkSecondary mt-0.5 flex gap-3">
                       <span>{r.per_serving_calories} kcal</span>
                       <span>{r.per_serving_protein}g P</span>
                       <span>{r.per_serving_carbs}g C</span>
@@ -164,8 +182,8 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
                     title={conflict || 'Select this recipe'}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shrink-0 ${
                       conflict
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                        ? 'bg-surfaceMuted text-inkMuted cursor-not-allowed border border-edge'
+                        : 'text-brand bg-brand/10 hover:bg-brand/20 border border-brand/30'
                     }`}
                   >
                     {submitting ? 'Applying...' : conflict ? 'Unavailable' : 'Select'}
@@ -176,11 +194,11 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
           )}
         </div>
 
-        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+        <div className="mt-4 pt-3 border-t border-edge flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            className="px-4 py-1.5 text-xs font-medium text-inkSecondary bg-surfaceMuted hover:bg-surfaceRaised rounded-lg border border-edge transition-colors"
           >
             Cancel
           </button>
@@ -189,4 +207,3 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
     </div>
   )
 }
-

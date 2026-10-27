@@ -34,6 +34,15 @@ export function NutritionGoalModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  // Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   useEffect(() => {
     if (currentGoals) {
       setCalories(currentGoals.calories_kcal != null ? String(Math.round(currentGoals.calories_kcal)) : '')
@@ -109,54 +118,60 @@ export function NutritionGoalModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="goal-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition-opacity motion-reduce:transition-none"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl text-left overflow-hidden">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl text-left overflow-hidden transition-colors motion-reduce:transition-none"
+      >
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+        <div className="p-4 sm:p-5 border-b border-sand dark:border-darkBorder flex justify-between items-center">
           <div>
-            <h2 id="goal-modal-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            <h2 id="goal-modal-title" className="text-lg font-bold text-ink dark:text-darkInk">
               Daily Nutrition Goals
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5">
               Personalized targets for daily tracking. Leave blank if you prefer not to track a specific metric.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
-            aria-label="Close"
+            className="text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk p-1.5 rounded-xl hover:bg-mist/40 dark:hover:bg-darkMist/40 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+            aria-label="Close dialog"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {errorMessage && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-xs">
+            <div role="alert" className="p-3 bg-status-error dark:bg-darkSurface border border-border-card rounded-xl text-alert dark:text-darkCoral text-xs font-medium">
               {errorMessage}
             </div>
           )}
 
           {/* Goal Estimate Helper */}
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+          <div className="p-3.5 bg-canvas/70 dark:bg-darkCanvas/70 rounded-xl border border-sand dark:border-darkBorder space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <span className="text-xs font-semibold text-ink dark:text-darkInk">
                 Need a starting point?
               </span>
               <button
                 type="button"
                 onClick={handleFetchEstimate}
                 disabled={loadingEstimate}
-                className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 transition disabled:opacity-50"
+                className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition disabled:opacity-50 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               >
                 {loadingEstimate ? 'Calculating...' : 'Calculate Suggestion'}
               </button>
             </div>
             {estimate && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed border-t border-slate-200 dark:border-slate-700/60 pt-2">
+              <p className="text-[11px] text-inkSecondary dark:text-darkInkSecondary leading-relaxed border-t border-sand/60 dark:border-darkBorder/60 pt-2">
                 {estimate.formula_explanation}
               </p>
             )}
@@ -166,7 +181,7 @@ export function NutritionGoalModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Calories */}
             <div className="sm:col-span-2">
-              <label htmlFor="target-calories" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="target-calories" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Daily Calorie Target (kcal)
               </label>
               <input
@@ -178,13 +193,13 @@ export function NutritionGoalModal({
                 placeholder="e.g. 2000 (optional)"
                 value={calories}
                 onChange={(e) => setCalories(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-semibold focus:outline-emerald-500"
+                className="w-full px-3 py-2 text-sm font-bold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
 
             {/* Protein */}
             <div>
-              <label htmlFor="target-protein" className="block text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1">
+              <label htmlFor="target-protein" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Protein Target (g)
               </label>
               <input
@@ -196,13 +211,13 @@ export function NutritionGoalModal({
                 placeholder="e.g. 140 (optional)"
                 value={protein}
                 onChange={(e) => setProtein(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-semibold focus:outline-blue-500"
+                className="w-full px-3 py-2 text-sm font-semibold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
 
             {/* Carbs */}
             <div>
-              <label htmlFor="target-carbs" className="block text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
+              <label htmlFor="target-carbs" className="block text-xs font-semibold text-amber-800 dark:text-darkButter mb-1">
                 Carbohydrate Target (g)
               </label>
               <input
@@ -214,13 +229,13 @@ export function NutritionGoalModal({
                 placeholder="e.g. 220 (optional)"
                 value={carbs}
                 onChange={(e) => setCarbs(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-semibold focus:outline-amber-500"
+                className="w-full px-3 py-2 text-sm font-semibold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
 
             {/* Fat */}
             <div>
-              <label htmlFor="target-fat" className="block text-xs font-semibold text-rose-700 dark:text-rose-400 mb-1">
+              <label htmlFor="target-fat" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Fat Target (g)
               </label>
               <input
@@ -232,13 +247,13 @@ export function NutritionGoalModal({
                 placeholder="e.g. 65 (optional)"
                 value={fat}
                 onChange={(e) => setFat(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-semibold focus:outline-rose-500"
+                className="w-full px-3 py-2 text-sm font-semibold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
 
             {/* Fiber */}
             <div>
-              <label htmlFor="target-fiber" className="block text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
+              <label htmlFor="target-fiber" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Fiber Target (g)
               </label>
               <input
@@ -250,28 +265,28 @@ export function NutritionGoalModal({
                 placeholder="e.g. 30 (optional)"
                 value={fiber}
                 onChange={(e) => setFiber(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-semibold focus:outline-emerald-500"
+                className="w-full px-3 py-2 text-sm font-semibold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
           </div>
 
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 pt-2">
-            Tip: These targets are stored locally in SQLite on your device. Changing body measurements in your profile will not alter your saved targets.
+          <p className="text-[11px] text-inkSecondary dark:text-darkInkSecondary pt-2 border-t border-sand/60 dark:border-darkBorder/60">
+            Tip: These targets are stored locally on your device. Changing body measurements in your profile will not alter your saved targets.
           </p>
 
           {/* Action buttons */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+          <div className="pt-4 border-t border-sand dark:border-darkBorder flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50"
+              className="px-5 py-2 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition disabled:opacity-50 cursor-pointer shadow-xs"
             >
               {isSubmitting ? 'Saving...' : 'Save Goals'}
             </button>
@@ -281,4 +296,3 @@ export function NutritionGoalModal({
     </div>
   )
 }
-

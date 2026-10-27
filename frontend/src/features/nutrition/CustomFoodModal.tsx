@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import type { Food, FoodCreate } from '../../types/food'
 import { foodService } from '../../services/foodService'
 
@@ -34,6 +34,15 @@ export function CustomFoodModal({
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const parseNum = (val: string): number | null => {
     if (!val.trim()) return null
@@ -102,32 +111,38 @@ export function CustomFoodModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="custom-food-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition-opacity motion-reduce:transition-none"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl text-left">
-        <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800">
-          <h2 id="custom-food-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl text-left transition-colors motion-reduce:transition-none"
+      >
+        <div className="flex justify-between items-center pb-4 border-b border-sand dark:border-darkBorder">
+          <h2 id="custom-food-title" className="text-lg font-bold text-ink dark:text-darkInk">
             {initialFood ? 'Edit Food' : 'Create Custom Food'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
-            aria-label="Close"
+            className="text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk p-1.5 rounded-xl hover:bg-mist/40 dark:hover:bg-darkMist/40 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+            aria-label="Close dialog"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-300">
+          <div role="alert" className="mt-4 p-3 bg-status-error dark:bg-darkSurface border border-border-card rounded-xl text-xs font-medium text-alert dark:text-darkCoral">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
               Food Name *
             </label>
             <input
@@ -136,13 +151,13 @@ export function CustomFoodModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Rolled Oats"
-              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+              className="w-full px-3 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Brand (optional)
               </label>
               <input
@@ -150,11 +165,11 @@ export function CustomFoodModal({
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 placeholder="e.g. Quaker"
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                className="w-full px-3 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Category (optional)
               </label>
               <input
@@ -162,20 +177,20 @@ export function CustomFoodModal({
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Grains, Dairy"
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                className="w-full px-3 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Nutritional Basis
               </label>
               <select
                 value={basis}
                 onChange={(e) => setBasis(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                className="w-full px-3 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               >
                 <option value="100g">Per 100 g</option>
                 <option value="100ml">Per 100 ml</option>
@@ -183,7 +198,7 @@ export function CustomFoodModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Serving Description
               </label>
               <input
@@ -191,41 +206,41 @@ export function CustomFoodModal({
                 value={servingDesc}
                 onChange={(e) => setServingDesc(e.target.value)}
                 placeholder="e.g. 1 cup, 1 slice"
-                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                className="w-full px-3 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Serving Size (qty / unit)
               </label>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 <input
                   type="number"
                   step="any"
                   value={servingQty}
                   onChange={(e) => setServingQty(e.target.value)}
                   placeholder="30"
-                  className="w-16 px-2 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                  className="w-16 px-2.5 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
                 <input
                   type="text"
                   value={servingUnit}
                   onChange={(e) => setServingUnit(e.target.value)}
                   placeholder="g"
-                  className="w-12 px-2 py-2 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                  className="w-14 px-2 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
             </div>
           </div>
 
           {/* Core Macros */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">
+          <div className="pt-3 border-t border-sand/60 dark:border-darkBorder/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-inkSecondary dark:text-darkInkSecondary mb-2 block">
               Nutritional Values ({basis})
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Calories (kcal) *
                 </label>
                 <input
@@ -235,11 +250,11 @@ export function CustomFoodModal({
                   required
                   value={calories}
                   onChange={(e) => setCalories(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 font-semibold"
+                  className="w-full px-3 py-1.5 text-sm font-bold border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-blue-600 dark:text-blue-400 mb-1">
+                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Protein (g) *
                 </label>
                 <input
@@ -249,11 +264,11 @@ export function CustomFoodModal({
                   required
                   value={protein}
                   onChange={(e) => setProtein(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-amber-600 dark:text-amber-400 mb-1">
+                <label className="block text-[11px] font-semibold text-amber-800 dark:text-darkButter mb-1">
                   Carbs (g) *
                 </label>
                 <input
@@ -263,11 +278,11 @@ export function CustomFoodModal({
                   required
                   value={carbs}
                   onChange={(e) => setCarbs(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-rose-600 dark:text-rose-400 mb-1">
+                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Fat (g) *
                 </label>
                 <input
@@ -277,77 +292,77 @@ export function CustomFoodModal({
                   required
                   value={fat}
                   onChange={(e) => setFat(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
             </div>
           </div>
 
           {/* Optional Nutrients */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">
+          <div className="pt-3 border-t border-sand/60 dark:border-darkBorder/60">
+            <span className="text-xs font-bold uppercase tracking-wider text-inkSecondary dark:text-darkInkSecondary mb-2 block">
               Optional Micronutrients
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Fiber (g)</label>
+                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Fiber (g)</label>
                 <input
                   type="number"
                   step="any"
                   min="0"
                   value={fiber}
                   onChange={(e) => setFiber(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Sugar (g)</label>
+                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sugar (g)</label>
                 <input
                   type="number"
                   step="any"
                   min="0"
                   value={sugar}
                   onChange={(e) => setSugar(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Sat Fat (g)</label>
+                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sat Fat (g)</label>
                 <input
                   type="number"
                   step="any"
                   min="0"
                   value={satFat}
                   onChange={(e) => setSatFat(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Sodium (mg)</label>
+                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sodium (mg)</label>
                 <input
                   type="number"
                   step="any"
                   min="0"
                   value={sodium}
                   onChange={(e) => setSodium(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex justify-end gap-3 pt-4 border-t border-sand dark:border-darkBorder">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition"
+              className="px-5 py-2 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition cursor-pointer shadow-xs disabled:opacity-50"
             >
               {loading ? 'Saving...' : initialFood ? 'Update Food' : 'Save Food'}
             </button>

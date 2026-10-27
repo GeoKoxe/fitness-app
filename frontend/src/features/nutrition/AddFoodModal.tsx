@@ -34,6 +34,15 @@ export function AddFoodModal({
 
   const [showCustomModal, setShowCustomModal] = useState(false)
 
+  // Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   // Load recent & favorites
   useEffect(() => {
     let ignore = false
@@ -44,7 +53,6 @@ export function AddFoodModal({
           foodService.listFoods({ favoritesOnly: true, pageSize: 20 }),
         ])
         if (!ignore) {
-          // Merge distinct foods
           const map = new Map<number, Food>()
           for (const f of favs.items) map.set(f.id, f)
           for (const f of recents) map.set(f.id, f)
@@ -106,20 +114,20 @@ export function AddFoodModal({
   const renderSourceBadge = (source?: string) => {
     if (source === 'generic_usda') {
       return (
-        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
           Generic (USDA)
         </span>
       )
     }
     if (source === 'open_food_facts') {
       return (
-        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-butter/50 dark:bg-darkButter/20 text-amber-900 dark:text-darkButter border border-amber-300 dark:border-darkButter/40">
           OpenFoodFacts
         </span>
       )
     }
     return (
-      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-canvas dark:bg-darkCanvas text-inkSecondary dark:text-darkInkSecondary border border-sand dark:border-darkBorder">
         Custom
       </span>
     )
@@ -155,7 +163,6 @@ export function AddFoodModal({
 
     setIsSubmitting(true)
     try {
-      // 1. Ensure food is stored in local database if external
       let foodId: number | undefined
       if (selectedFood.id && typeof selectedFood.id === 'number') {
         foodId = selectedFood.id
@@ -164,7 +171,6 @@ export function AddFoodModal({
         foodId = persisted.id
       }
 
-      // 2. Create meal log with snapshot
       const log = await mealLogService.createMealLog({
         logged_date: loggedDate,
         meal_category: mealCategory,
@@ -193,36 +199,42 @@ export function AddFoodModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-food-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition-opacity motion-reduce:transition-none"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl text-left overflow-hidden">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl text-left overflow-hidden transition-colors motion-reduce:transition-none"
+      >
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+        <div className="p-4 sm:p-5 border-b border-sand dark:border-darkBorder flex justify-between items-center">
           <div>
-            <h2 id="add-food-title" className="text-lg font-bold text-slate-900 dark:text-slate-100 capitalize">
+            <h2 id="add-food-title" className="text-lg font-bold text-ink dark:text-darkInk capitalize">
               Add Food to {mealCategory}
             </h2>
-            <span className="text-xs text-slate-500">Date: {loggedDate}</span>
+            <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">Date: {loggedDate}</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
-            aria-label="Close"
+            className="text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk p-1.5 rounded-xl hover:bg-mist/40 dark:hover:bg-darkMist/40 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+            aria-label="Close dialog"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Tab Selector */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 px-5 gap-4 pt-2">
+        <div className="flex border-b border-sand dark:border-darkBorder px-5 gap-4 pt-2">
           <button
             type="button"
             onClick={() => setActiveTab('search')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition cursor-pointer ${
               activeTab === 'search'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-midnight text-midnight dark:border-darkMidnight dark:text-darkMidnight'
+                : 'border-transparent text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk'
             }`}
           >
             Search Food
@@ -230,18 +242,18 @@ export function AddFoodModal({
           <button
             type="button"
             onClick={() => setActiveTab('recents')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition cursor-pointer ${
               activeTab === 'recents'
-                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-midnight text-midnight dark:border-darkMidnight dark:text-darkMidnight'
+                : 'border-transparent text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk'
             }`}
           >
-            Favorites & Recents ({recentFoods.length})
+            Favorites &amp; Recents ({recentFoods.length})
           </button>
           <button
             type="button"
             onClick={() => setShowCustomModal(true)}
-            className="ml-auto pb-2.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            className="ml-auto pb-2.5 text-xs font-semibold text-midnight dark:text-darkMidnight hover:underline flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle rounded"
           >
             + Create Custom Food
           </button>
@@ -258,16 +270,16 @@ export function AddFoodModal({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search by food name, brand, or barcode..."
-                  className="w-full pl-9 pr-9 py-2.5 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/80 focus:bg-white dark:focus:bg-slate-800 transition"
+                  className="w-full pl-9 pr-9 py-2.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle transition"
                 />
-                <svg className="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-inkSecondary dark:text-darkInkSecondary absolute left-3 top-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 {query && (
                   <button
                     type="button"
                     onClick={() => setQuery('')}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs p-1"
+                    className="absolute right-3 top-2.5 text-inkSecondary hover:text-ink text-xs p-1 cursor-pointer"
                   >
                     ✕
                   </button>
@@ -275,48 +287,48 @@ export function AddFoodModal({
               </div>
 
               {isSearching && (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  <div className="inline-block animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full mb-2" />
-                  <p>Searching food catalogue & Open Food Facts...</p>
+                <div className="py-8 text-center text-xs text-inkSecondary dark:text-darkInkSecondary">
+                  <div className="inline-block animate-spin w-6 h-6 border-2 border-midnight dark:border-darkMidnight border-t-transparent rounded-full mb-2" />
+                  <p>Searching food catalogue &amp; Open Food Facts...</p>
                 </div>
               )}
 
               {searchError && (
-                <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-xl text-xs">
+                <div className="mt-3 p-3 bg-status-error dark:bg-darkSurface border border-border-card text-alert dark:text-darkCoral rounded-xl text-xs font-medium">
                   {searchError}
                 </div>
               )}
 
               {!isSearching && query.trim() && searchResults.length === 0 && (
-                <div className="py-8 text-center text-xs text-slate-500">
+                <div className="py-8 text-center text-xs text-inkSecondary dark:text-darkInkSecondary">
                   No foods found for "{query}". You can create a custom food.
                 </div>
               )}
 
               {/* Search Results List */}
-              <div className="divide-y divide-slate-100 dark:divide-slate-800 mt-2 max-h-56 overflow-y-auto">
+              <div className="divide-y divide-sand/50 dark:divide-darkBorder/60 mt-2 max-h-56 overflow-y-auto">
                 {searchResults.map((f, idx) => (
                   <button
                     key={`${f.name}_${idx}`}
                     type="button"
                     onClick={() => handleSelectFood(f)}
-                    className={`w-full text-left p-3 rounded-xl transition flex justify-between items-center gap-2 ${
+                    className={`w-full text-left p-3 rounded-xl transition flex justify-between items-center gap-2 cursor-pointer ${
                       selectedFood?.name === f.name
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'bg-mist/50 dark:bg-darkMist border border-sand dark:border-darkBorder'
+                        : 'hover:bg-canvas/50 dark:hover:bg-darkCanvas/50'
                     }`}
                   >
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{f.name}</span>
-                        {f.brand && <span className="text-xs text-slate-400">({f.brand})</span>}
+                        <span className="font-semibold text-sm text-ink dark:text-darkInk">{f.name}</span>
+                        {f.brand && <span className="text-xs text-inkSecondary dark:text-darkInkSecondary">({f.brand})</span>}
                         {renderSourceBadge(f.source)}
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5">
                         {Math.round(f.calories_kcal)} kcal • P: {f.protein_g}g • C: {f.carbs_g}g • F: {f.fat_g}g (per {f.nutritional_basis}{f.serving_description ? ` • Serving: ${f.serving_description}` : ''})
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Select →</span>
+                    <span className="text-xs font-semibold text-midnight dark:text-darkMidnight">Select →</span>
                   </button>
                 ))}
               </div>
@@ -324,9 +336,9 @@ export function AddFoodModal({
           )}
 
           {activeTab === 'recents' && (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
+            <div className="divide-y divide-sand/50 dark:divide-darkBorder/60 max-h-64 overflow-y-auto">
               {recentFoods.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400">
+                <div className="p-8 text-center text-xs text-inkSecondary dark:text-darkInkSecondary">
                   No recent or favorite foods yet. Star a food or log your first meal!
                 </div>
               ) : (
@@ -335,24 +347,24 @@ export function AddFoodModal({
                     key={f.id}
                     type="button"
                     onClick={() => handleSelectFood(f)}
-                    className={`w-full text-left p-3 rounded-xl transition flex justify-between items-center gap-2 ${
+                    className={`w-full text-left p-3 rounded-xl transition flex justify-between items-center gap-2 cursor-pointer ${
                       selectedFood?.name === f.name
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'bg-mist/50 dark:bg-darkMist border border-sand dark:border-darkBorder'
+                        : 'hover:bg-canvas/50 dark:hover:bg-darkCanvas/50'
                     }`}
                   >
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{f.name}</span>
-                        {f.brand && <span className="text-xs text-slate-400">({f.brand})</span>}
+                        <span className="font-semibold text-sm text-ink dark:text-darkInk">{f.name}</span>
+                        {f.brand && <span className="text-xs text-inkSecondary dark:text-darkInkSecondary">({f.brand})</span>}
                         {renderSourceBadge(f.source)}
-                        {f.is_favorite && <span className="text-xs text-amber-500" title="Favorite">★</span>}
+                        {f.is_favorite && <span className="text-xs text-amber-700 dark:text-darkButter font-bold" title="Favorite">★</span>}
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5">
+                      <div className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5">
                         {Math.round(f.calories_kcal)} kcal • P: {f.protein_g}g • C: {f.carbs_g}g • F: {f.fat_g}g (per {f.nutritional_basis})
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Select →</span>
+                    <span className="text-xs font-semibold text-midnight dark:text-darkMidnight">Select →</span>
                   </button>
                 ))
               )}
@@ -361,28 +373,28 @@ export function AddFoodModal({
 
           {/* Portion & Scaling Calculator */}
           {selectedFood && (
-            <div className="p-4 bg-emerald-50/50 dark:bg-slate-850 rounded-2xl border border-emerald-200/80 dark:border-slate-700 text-left">
+            <div className="p-4 bg-canvas/70 dark:bg-darkCanvas/70 rounded-2xl border border-sand dark:border-darkBorder text-left">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  <span className="text-xs font-bold uppercase tracking-wider text-inkSecondary dark:text-darkInkSecondary">
                     Selected Food
                   </span>
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 mt-0.5">
+                  <h4 className="font-bold text-sm text-ink dark:text-darkInk mt-0.5">
                     {selectedFood.name} {selectedFood.brand ? `(${selectedFood.brand})` : ''}
                   </h4>
                 </div>
                 <div className="text-right">
-                  <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xl font-extrabold text-ink dark:text-darkInk">
                     {previewCalories}
                   </span>
-                  <span className="text-xs font-medium text-slate-500 ml-1">kcal</span>
+                  <span className="text-xs font-medium text-inkSecondary dark:text-darkInkSecondary ml-1">kcal</span>
                 </div>
               </div>
 
               {/* Portion Inputs */}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                     Portion Quantity *
                   </label>
                   <input
@@ -391,17 +403,17 @@ export function AddFoodModal({
                     min="1"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-bold"
+                    className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-surface dark:bg-darkSurface text-ink dark:text-darkInk font-bold focus:outline-none focus:ring-2 focus:ring-periwinkle"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                  <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                     Unit
                   </label>
                   <select
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                    className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-surface dark:bg-darkSurface text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                   >
                     <option value="g">grams (g)</option>
                     <option value="ml">milliliters (ml)</option>
@@ -412,7 +424,7 @@ export function AddFoodModal({
 
               {/* Notes input */}
               <div className="mb-3">
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Notes (optional)
                 </label>
                 <input
@@ -420,26 +432,26 @@ export function AddFoodModal({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g. with almond milk, post-workout"
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
+                  className="w-full px-3 py-1.5 text-xs border border-sand dark:border-darkBorder rounded-xl bg-surface dark:bg-darkSurface text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
 
               {/* Preview Macro Breakdown */}
-              <div className="flex items-center gap-4 text-xs font-medium text-slate-600 dark:text-slate-300 pt-2 border-t border-emerald-200/50 dark:border-slate-700/80">
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">Protein: {previewProtein}g</span>
-                <span className="text-amber-600 dark:text-amber-400 font-semibold">Carbs: {previewCarbs}g</span>
-                <span className="text-rose-600 dark:text-rose-400 font-semibold">Fat: {previewFat}g</span>
+              <div className="flex items-center gap-4 text-xs font-medium text-inkSecondary dark:text-darkInkSecondary pt-2 border-t border-sand/60 dark:border-darkBorder/60">
+                <span className="text-ink dark:text-darkInk font-semibold">Protein: {previewProtein}g</span>
+                <span className="text-amber-800 dark:text-darkButter font-semibold">Carbs: {previewCarbs}g</span>
+                <span className="text-ink dark:text-darkInk font-semibold">Fat: {previewFat}g</span>
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+        <div className="p-4 bg-canvas/40 dark:bg-darkCanvas/40 border-t border-sand dark:border-darkBorder flex justify-between items-center">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition"
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist transition cursor-pointer"
           >
             Cancel
           </button>
@@ -447,7 +459,7 @@ export function AddFoodModal({
             type="button"
             disabled={!selectedFood || isSubmitting}
             onClick={handleLogFood}
-            className="px-6 py-2 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-1.5"
+            className="px-6 py-2 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             {isSubmitting ? 'Logging...' : `Log to ${mealCategory}`}
           </button>

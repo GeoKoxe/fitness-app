@@ -54,22 +54,24 @@ export function MyFoodsView() {
 
   return (
     <div className="space-y-4 text-left">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder p-5 rounded-2xl shadow-xs transition-colors motion-reduce:transition-none">
         <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+          <h2 className="text-base font-bold text-ink dark:text-darkInk">
             Food Catalogue ({foods.length})
           </h2>
-          <p className="text-xs text-slate-500">Manage your saved custom foods and recipes</p>
+          <p className="text-xs text-inkSecondary dark:text-darkInkSecondary mt-0.5">
+            Manage your saved custom foods and recipes
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setFavoritesOnly(!favoritesOnly)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition flex items-center gap-1 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle ${
               favoritesOnly
-                ? 'bg-amber-50 dark:bg-amber-950 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+                ? 'bg-butter/50 dark:bg-darkButter/20 border-amber-300 dark:border-darkButter/40 text-amber-900 dark:text-darkButter'
+                : 'border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist'
             }`}
           >
             <span>★</span>
@@ -78,7 +80,7 @@ export function MyFoodsView() {
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-midnight text-white hover:opacity-95 dark:bg-darkMidnight dark:text-white transition shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
           >
             + Create Food
           </button>
@@ -86,46 +88,48 @@ export function MyFoodsView() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/30 text-red-600 rounded-xl text-xs">{error}</div>
+        <div role="alert" className="p-4 bg-status-error dark:bg-darkSurface border border-border-card text-alert dark:text-darkCoral rounded-2xl text-xs font-medium">
+          {error}
+        </div>
       )}
 
       {loading ? (
-        <div className="p-12 text-center text-xs text-slate-400">
-          <div className="inline-block animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mb-2" />
-          <p>Loading catalogue foods...</p>
+        <div className="p-12 text-center text-xs text-inkSecondary dark:text-darkInkSecondary">
+          <div className="inline-block animate-spin w-8 h-8 border-3 border-midnight dark:border-darkMidnight border-t-transparent rounded-full mb-3" />
+          <p className="font-medium">Loading catalogue foods...</p>
         </div>
       ) : foods.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 text-xs">
+        <div className="p-12 text-center bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl text-inkSecondary dark:text-darkInkSecondary text-xs">
           No foods saved yet. Click "+ Create Food" to add your first custom recipe.
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800 shadow-xs overflow-hidden">
+        <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl divide-y divide-sand/50 dark:divide-darkBorder/60 shadow-xs overflow-hidden">
           {foods.map((food) => (
             <div
               key={food.id}
-              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition"
+              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-canvas/40 dark:hover:bg-darkCanvas/40 transition"
             >
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => handleToggleFav(food)}
-                    className={`text-base leading-none transition ${
-                      food.is_favorite ? 'text-amber-500 hover:text-amber-600' : 'text-slate-300 hover:text-slate-400'
+                    className={`text-base leading-none transition cursor-pointer p-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle ${
+                      food.is_favorite ? 'text-amber-700 dark:text-darkButter' : 'text-sand dark:text-darkBorder hover:text-amber-700'
                     }`}
                     title={food.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
                     aria-label={`Toggle favorite for ${food.name}`}
                   >
                     ★
                   </button>
-                  <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{food.name}</span>
-                  {food.brand && <span className="text-xs text-slate-400">({food.brand})</span>}
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  <span className="font-semibold text-sm text-ink dark:text-darkInk">{food.name}</span>
+                  {food.brand && <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-normal">({food.brand})</span>}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
                     {food.nutritional_basis}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500 mt-1">
-                  <span>{Math.round(food.calories_kcal)} kcal</span>
+                <div className="flex flex-wrap items-center gap-x-3 text-xs text-inkSecondary dark:text-darkInkSecondary mt-1">
+                  <span className="font-bold text-ink dark:text-darkInk">{Math.round(food.calories_kcal)} kcal</span>
                   <span>•</span>
                   <span>Protein: {food.protein_g}g</span>
                   <span>•</span>
@@ -145,14 +149,14 @@ export function MyFoodsView() {
                 <button
                   type="button"
                   onClick={() => setEditingFood(food)}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition text-slate-600 dark:text-slate-300"
+                  className="px-3 py-1 text-xs font-semibold rounded-xl border border-sand dark:border-darkBorder bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist transition text-ink dark:text-darkInk cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(food)}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950 text-red-600 transition"
+                  className="px-3 py-1 text-xs font-semibold rounded-xl border border-alert/30 dark:border-darkCoral/30 bg-canvas dark:bg-darkCanvas hover:bg-mist/40 text-alert dark:text-darkCoral transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert"
                 >
                   Delete
                 </button>

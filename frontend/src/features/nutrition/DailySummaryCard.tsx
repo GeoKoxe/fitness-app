@@ -19,85 +19,84 @@ export function DailySummaryCard({ totals, totalEntries }: DailySummaryCardProps
   const fatPct = totalMacroKcal > 0 ? Math.round((fatKcal / totalMacroKcal) * 100) : 0
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs text-left">
+    <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs text-left">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          <h2 className="text-lg font-bold text-ink">
             Daily Nutrition Summary
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-inkSecondary">
             {totalEntries === 0 ? 'No foods logged for this date' : `${totalEntries} food entries logged`}
           </p>
         </div>
         <div className="text-right">
-          <span className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
+          <span className="text-3xl font-extrabold text-status-success-fg">
             {Math.round(calories_kcal)}
           </span>
-          <span className="text-sm font-medium text-slate-500 ml-1.5">kcal total</span>
+          <span className="text-sm font-medium text-inkSecondary ml-1.5">kcal total</span>
         </div>
       </div>
 
       {/* Macronutrient Cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {/* Protein */}
-        <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/40">
-          <div className="flex justify-between items-center text-xs font-semibold text-blue-700 dark:text-blue-300">
+        <div className="p-3.5 rounded-xl bg-brand/10 border border-brand/20">
+          <div className="flex justify-between items-center text-xs font-semibold text-brand">
             <span>Protein</span>
             <span>{proteinPct}%</span>
           </div>
-          <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-            {protein_g} <span className="text-xs font-normal text-slate-500">g</span>
+          <div className="text-xl font-bold text-ink mt-1">
+            {protein_g} <span className="text-xs font-normal text-inkSecondary">g</span>
           </div>
-          <div className="w-full bg-blue-200 dark:bg-blue-900/60 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div className="bg-blue-600 h-full rounded-full" style={{ width: `${Math.min(proteinPct, 100)}%` }} />
+          <div className="w-full bg-surfaceMuted h-1.5 rounded-full mt-2 overflow-hidden">
+            <div className="bg-brand h-full rounded-full" style={{ width: `${Math.min(proteinPct, 100)}%` }} />
           </div>
         </div>
 
         {/* Carbohydrates */}
-        <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/40">
-          <div className="flex justify-between items-center text-xs font-semibold text-amber-700 dark:text-amber-300">
+        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+          <div className="flex justify-between items-center text-xs font-semibold text-amber-700 dark:text-amber-400">
             <span>Carbs</span>
             <span>{carbsPct}%</span>
           </div>
-          <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-            {carbs_g} <span className="text-xs font-normal text-slate-500">g</span>
+          <div className="text-xl font-bold text-ink mt-1">
+            {carbs_g} <span className="text-xs font-normal text-inkSecondary">g</span>
           </div>
-          <div className="w-full bg-amber-200 dark:bg-amber-900/60 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div className="bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(carbsPct, 100)}%` }} />
+          <div className="w-full bg-surfaceMuted h-1.5 rounded-full mt-2 overflow-hidden">
+            <div className="bg-amber-600 dark:bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(carbsPct, 100)}%` }} />
           </div>
         </div>
 
         {/* Fat */}
-        <div className="p-3.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/40">
-          <div className="flex justify-between items-center text-xs font-semibold text-rose-700 dark:text-rose-300">
+        <div className="p-3.5 rounded-xl bg-status-danger-bg border border-status-danger-border">
+          <div className="flex justify-between items-center text-xs font-semibold text-status-danger-fg">
             <span>Fat</span>
             <span>{fatPct}%</span>
           </div>
-          <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-            {fat_g} <span className="text-xs font-normal text-slate-500">g</span>
+          <div className="text-xl font-bold text-ink mt-1">
+            {fat_g} <span className="text-xs font-normal text-inkSecondary">g</span>
           </div>
-          <div className="w-full bg-rose-200 dark:bg-rose-900/60 h-1.5 rounded-full mt-2 overflow-hidden">
-            <div className="bg-rose-500 h-full rounded-full" style={{ width: `${Math.min(fatPct, 100)}%` }} />
+          <div className="w-full bg-surfaceMuted h-1.5 rounded-full mt-2 overflow-hidden">
+            <div className="bg-status-danger-fg h-full rounded-full" style={{ width: `${Math.min(fatPct, 100)}%` }} />
           </div>
         </div>
       </div>
 
       {/* Micronutrients breakdown */}
-      <div className="flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-slate-500 dark:text-slate-400 pt-4 border-t border-slate-100 dark:border-slate-800">
+      <div className="flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-inkSecondary pt-4 border-t border-edge">
         <div>
-          <span className="font-medium text-slate-700 dark:text-slate-300">Fiber: </span>
+          <span className="font-medium text-ink">Fiber: </span>
           {fiber_g != null ? `${fiber_g} g` : '--'}
         </div>
         <div>
-          <span className="font-medium text-slate-700 dark:text-slate-300">Sugar: </span>
+          <span className="font-medium text-ink">Sugar: </span>
           {sugar_g != null ? `${sugar_g} g` : '--'}
         </div>
         <div>
-          <span className="font-medium text-slate-700 dark:text-slate-300">Sodium: </span>
+          <span className="font-medium text-ink">Sodium: </span>
           {sodium_mg != null ? `${sodium_mg} mg` : '--'}
         </div>
       </div>
     </div>
   )
 }
-

@@ -37,6 +37,14 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([])
       return
@@ -113,61 +121,72 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 text-left border border-slate-100 max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800">Create Custom Recipe</h3>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-recipe-title"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div className="bg-surface rounded-2xl shadow-xl max-w-xl w-full p-6 text-left border border-edge max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-3 border-b border-edge">
+          <h3 id="create-recipe-title" className="text-lg font-bold text-ink">
+            Create Custom Recipe
+          </h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors"
+            aria-label="Close dialog"
+            className="text-inkSecondary hover:text-ink rounded-lg p-1 hover:bg-surfaceMuted transition-colors"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border text-status-danger-fg text-xs rounded-lg">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="create-recipe-name" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Recipe Name *
             </label>
             <input
+              id="create-recipe-name"
               type="text"
               required
               placeholder="e.g. Grandma's Lentil Soup"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="create-recipe-desc" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Description
             </label>
             <input
+              id="create-recipe-desc"
               type="text"
               placeholder="e.g. Nutritious and filling staple stew"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-sm text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="create-recipe-category" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Category
               </label>
               <select
+                id="create-recipe-category"
                 value={mealCategory}
                 onChange={(e) => setMealCategory(e.target.value)}
-                className="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+                className="w-full px-2.5 py-2 bg-surface border border-edge rounded-lg text-xs text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
               >
                 <option value="breakfast">Breakfast</option>
                 <option value="lunch">Lunch</option>
@@ -178,71 +197,75 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="create-recipe-servings" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Servings
               </label>
               <input
+                id="create-recipe-servings"
                 type="number"
                 min="1"
                 max="20"
                 value={servings}
                 onChange={(e) => setServings(parseInt(e.target.value, 10) || 1)}
-                className="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+                className="w-full px-2.5 py-2 bg-surface border border-edge rounded-lg text-xs text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="create-recipe-prep" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Prep (min)
               </label>
               <input
+                id="create-recipe-prep"
                 type="number"
                 min="0"
                 value={prepTime}
                 onChange={(e) => setPrepTime(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+                className="w-full px-2.5 py-2 bg-surface border border-edge rounded-lg text-xs text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="create-recipe-cook" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
                 Cook (min)
               </label>
               <input
+                id="create-recipe-cook"
                 type="number"
                 min="0"
                 value={cookTime}
                 onChange={(e) => setCookTime(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+                className="w-full px-2.5 py-2 bg-surface border border-edge rounded-lg text-xs text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
           </div>
 
           {/* Add Ingredients Section */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+          <div className="bg-surfaceMuted p-4 rounded-xl border border-edge space-y-3">
+            <h4 className="text-xs font-bold text-ink uppercase tracking-wider">
               Ingredients ({ingredients.length})
             </h4>
 
             {/* Added list */}
             {ingredients.length > 0 && (
-              <div className="divide-y divide-slate-200 border border-slate-200 rounded-lg bg-white overflow-hidden">
+              <div className="divide-y divide-edge border border-edge rounded-lg bg-surface overflow-hidden">
                 {ingredients.map((it, idx) => (
                   <div key={idx} className="p-2.5 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-semibold text-slate-800">{it.food_name}</span>
+                      <span className="font-semibold text-ink">{it.food_name}</span>
                       {it.preparation_notes && (
-                        <span className="text-[10px] text-slate-400 ml-1.5">({it.preparation_notes})</span>
+                        <span className="text-[10px] text-inkSecondary ml-1.5">({it.preparation_notes})</span>
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-slate-600 font-medium">
+                      <span className="text-inkSecondary font-medium">
                         {it.quantity} {it.unit}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveIngredient(idx)}
-                        className="text-rose-500 hover:text-rose-700 font-bold px-1"
+                        aria-label={`Remove ingredient ${it.food_name}`}
+                        className="text-status-danger-fg hover:underline font-bold px-1"
                       >
                         ✕
                       </button>
@@ -259,15 +282,16 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
                   <input
                     type="text"
                     placeholder="Search catalogue food to add..."
+                    aria-label="Search catalogue food to add"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-800 bg-white"
+                    className="w-full px-3 py-1.5 bg-surface border border-edge rounded-lg text-xs text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
                   />
                   {searching && (
-                    <div className="absolute right-3 top-2 text-[10px] text-slate-400">Searching...</div>
+                    <div className="absolute right-3 top-2 text-[10px] text-inkMuted">Searching...</div>
                   )}
                   {searchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto divide-y divide-slate-100">
+                    <div className="absolute z-10 w-full mt-1 bg-surface border border-edge rounded-lg shadow-lg max-h-40 overflow-y-auto divide-y divide-edge">
                       {searchResults.map((f) => (
                         <div
                           key={f.id}
@@ -275,33 +299,35 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
                             setSelectedFood(f)
                             setIngUnit(f.serving_unit || 'g')
                           }}
-                          className="p-2 text-xs hover:bg-indigo-50 cursor-pointer flex justify-between"
+                          className="p-2 text-xs hover:bg-surfaceMuted cursor-pointer flex justify-between"
                         >
-                          <span className="font-medium text-slate-800">{f.name}</span>
-                          <span className="text-slate-500">{f.calories_kcal} kcal / 100g</span>
+                          <span className="font-medium text-ink">{f.name}</span>
+                          <span className="text-inkSecondary">{f.calories_kcal} kcal / 100g</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center gap-2 bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-200">
+                <div className="flex flex-wrap items-center gap-2 bg-brand/10 p-2.5 rounded-lg border border-brand/20">
                   <div className="flex-1 min-w-[120px]">
-                    <span className="text-[10px] text-indigo-700 uppercase font-bold block">Selected</span>
-                    <span className="text-xs font-bold text-slate-900">{selectedFood.name}</span>
+                    <span className="text-[10px] text-brand uppercase font-bold block">Selected</span>
+                    <span className="text-xs font-bold text-ink">{selectedFood.name}</span>
                   </div>
                   <input
                     type="number"
                     min="0.1"
                     step="1"
+                    aria-label="Ingredient quantity"
                     value={ingQuantity}
                     onChange={(e) => setIngQuantity(parseFloat(e.target.value) || 0)}
-                    className="w-16 px-2 py-1 bg-white border border-slate-300 rounded text-xs text-center"
+                    className="w-16 px-2 py-1 bg-surface border border-edge rounded text-xs text-center text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
                   />
                   <select
                     value={ingUnit}
+                    aria-label="Ingredient unit"
                     onChange={(e) => setIngUnit(e.target.value)}
-                    className="px-2 py-1 bg-white border border-slate-300 rounded text-xs"
+                    className="px-2 py-1 bg-surface border border-edge rounded text-xs text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
                   >
                     <option value="g">g</option>
                     <option value="ml">ml</option>
@@ -310,21 +336,22 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
                   <input
                     type="text"
                     placeholder="notes (optional)"
+                    aria-label="Ingredient preparation notes"
                     value={ingNotes}
                     onChange={(e) => setIngNotes(e.target.value)}
-                    className="w-24 px-2 py-1 bg-white border border-slate-300 rounded text-xs"
+                    className="w-24 px-2 py-1 bg-surface border border-edge rounded text-xs text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
                   />
                   <button
                     type="button"
                     onClick={handleAddIngredient}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold"
+                    className="px-3 py-1 bg-brand hover:bg-brandHover text-white rounded text-xs font-semibold shadow-xs transition-colors"
                   >
                     + Add
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedFood(null)}
-                    className="text-xs text-slate-500 hover:text-slate-700 px-1"
+                    className="text-xs text-inkSecondary hover:text-ink px-1"
                   >
                     Cancel
                   </button>
@@ -334,43 +361,45 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="create-recipe-instructions" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Instructions
             </label>
             <textarea
+              id="create-recipe-instructions"
               rows={3}
               placeholder="Step-by-step preparation instructions..."
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-xs text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="create-recipe-tags" className="block text-xs font-semibold text-ink uppercase tracking-wider mb-1">
               Tags
             </label>
             <input
+              id="create-recipe-tags"
               type="text"
               placeholder="e.g. high-protein, quick, budget-friendly"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-800"
+              className="w-full px-3 py-2 bg-surface border border-edge rounded-lg text-xs text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex justify-end gap-3">
+          <div className="pt-3 border-t border-edge flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-medium text-inkSecondary bg-surfaceMuted hover:bg-surfaceRaised rounded-lg border border-edge transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+              className="px-5 py-2 text-xs font-semibold text-white bg-brand hover:bg-brandHover rounded-lg shadow-xs transition-colors disabled:opacity-50"
             >
               {loading ? 'Saving...' : 'Save Recipe'}
             </button>
