@@ -82,6 +82,19 @@ export function ActiveWorkoutSessionRunner({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
 
+  // Escape key handler for dialogs
+  useEffect(() => {
+    if (!showCancelConfirm && !showCompleteConfirm) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCancelConfirm(false)
+        setShowCompleteConfirm(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showCancelConfirm, showCompleteConfirm])
+
   // Refs for race-condition, mutation tracking, and debounce management
   const sessionRef = useRef(session)
   sessionRef.current = session
@@ -579,7 +592,7 @@ export function ActiveWorkoutSessionRunner({
         await inFlightPromiseRef.current
       }
 
-      // Final state and duration sync to backend
+      // Final duration sync to backend before cancellation
       const finalDuration = calculateElapsedSeconds(timerStateRef.current)
       durationRef.current = finalDuration
 
@@ -624,23 +637,23 @@ export function ActiveWorkoutSessionRunner({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {/* Header Sticky / Top Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-card">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-wider text-brand">
                 Active Workout Session
               </span>
               {session.session_focus && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-surfaceMuted border border-edge text-inkSecondary font-medium">
                   {session.session_focus}
                 </span>
               )}
             </div>
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-1">
+            <h2 className="text-xl font-extrabold text-ink mt-1">
               {session.session_name}
             </h2>
           </div>
@@ -648,10 +661,10 @@ export function ActiveWorkoutSessionRunner({
           {/* Timer and Controls */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Timer */}
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-surfaceMuted border border-edge">
               <span
                 data-testid="workout-timer-display"
-                className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100"
+                className="text-lg font-mono font-bold text-ink"
               >
                 {formatDuration(duration)}
               </span>
@@ -659,7 +672,7 @@ export function ActiveWorkoutSessionRunner({
                 type="button"
                 onClick={handleToggleTimer}
                 aria-label={timerState.isPaused ? 'Resume workout timer' : 'Pause workout timer'}
-                className="text-xs font-semibold px-2 py-0.5 rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                className="text-xs font-semibold px-2 py-0.5 rounded bg-surface border border-edge text-ink shadow-2xs hover:bg-surfaceRaised transition cursor-pointer"
               >
                 {timerState.isPaused ? 'Resume' : 'Pause'}
               </button>
@@ -667,7 +680,7 @@ export function ActiveWorkoutSessionRunner({
 
             {/* Autosave Status Indicator */}
             <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs font-medium"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surfaceHover/50 border border-edge text-xs font-medium"
               data-testid="save-status-container"
             >
               {saveStatus === 'saving' && (
@@ -691,7 +704,7 @@ export function ActiveWorkoutSessionRunner({
 
               {saveStatus === 'error' && (
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                  <span className="flex items-center gap-1 text-danger">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -700,7 +713,7 @@ export function ActiveWorkoutSessionRunner({
                   <button
                     type="button"
                     onClick={() => void triggerImmediateSave()}
-                    className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 hover:bg-rose-200 text-rose-800 dark:bg-rose-900/60 dark:hover:bg-rose-900 dark:text-rose-200 transition cursor-pointer"
+                    className="px-2 py-0.5 rounded text-[11px] font-semibold bg-dangerSubtle hover:opacity-80 text-danger border border-dangerBorder transition cursor-pointer"
                   >
                     Retry
                   </button>
@@ -708,7 +721,7 @@ export function ActiveWorkoutSessionRunner({
               )}
 
               {saveStatus === 'idle' && (
-                <span className="text-slate-400 text-xs">
+                <span className="text-inkMuted text-xs">
                   {isDirty ? 'Unsaved changes' : 'Ready'}
                 </span>
               )}
@@ -718,7 +731,7 @@ export function ActiveWorkoutSessionRunner({
               type="button"
               onClick={() => void handleSaveProgress(false)}
               disabled={saveStatus === 'saving'}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surface hover:bg-surfaceMuted transition disabled:opacity-50 cursor-pointer"
             >
               Save Progress
             </button>
@@ -727,7 +740,7 @@ export function ActiveWorkoutSessionRunner({
               type="button"
               onClick={() => setShowCompleteConfirm(true)}
               disabled={actionLoading}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition cursor-pointer disabled:opacity-50"
             >
               Complete Workout
             </button>
@@ -736,7 +749,7 @@ export function ActiveWorkoutSessionRunner({
               type="button"
               onClick={() => setShowCancelConfirm(true)}
               disabled={actionLoading}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer disabled:opacity-50"
+              className="px-3 py-2 rounded-xl text-xs font-semibold text-danger hover:bg-dangerSubtle transition cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
@@ -745,15 +758,15 @@ export function ActiveWorkoutSessionRunner({
 
         {/* Progress Bar */}
         <div className="mt-5 space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between text-xs text-inkSecondary">
             <span>
-              Progress: <strong className="text-slate-800 dark:text-slate-200">{completedSets}</strong> of {totalSets} sets completed ({progressPercent}%)
+              Progress: <strong className="text-ink">{completedSets}</strong> of {totalSets} sets completed ({progressPercent}%)
             </span>
             {skippedSets > 0 && <span>{skippedSets} skipped</span>}
           </div>
-          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-surfaceMuted rounded-full h-2.5 overflow-hidden">
             <div
-              className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300"
+              className="bg-brand h-2.5 rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -763,7 +776,7 @@ export function ActiveWorkoutSessionRunner({
         {recoveredFromDraft && (
           <div
             role="status"
-            className="mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between gap-3"
+            className="mt-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between gap-3"
           >
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -774,7 +787,7 @@ export function ActiveWorkoutSessionRunner({
             <button
               type="button"
               onClick={() => setRecoveredFromDraft(false)}
-              className="text-xs font-semibold hover:underline text-blue-800 dark:text-blue-200"
+              className="text-xs font-semibold hover:underline text-blue-800 dark:text-blue-200 cursor-pointer"
             >
               Dismiss
             </button>
@@ -785,7 +798,7 @@ export function ActiveWorkoutSessionRunner({
         {conflictError && (
           <div
             role="alert"
-            className="mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-xs text-amber-900 dark:text-amber-200 space-y-2"
+            className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 space-y-2"
           >
             <div className="flex items-center gap-2 font-bold">
               <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -817,12 +830,12 @@ export function ActiveWorkoutSessionRunner({
 
         {/* Error and Toast Messages */}
         {saveErrorMessage && !conflictError && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+          <div className="mt-4 p-3 rounded-xl bg-dangerSubtle border border-dangerBorder text-xs text-danger">
             {saveErrorMessage}
           </div>
         )}
         {toastMessage && (
-          <div className="mt-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
+          <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-800 dark:text-emerald-300">
             {toastMessage}
           </div>
         )}
@@ -833,26 +846,26 @@ export function ActiveWorkoutSessionRunner({
         {session.exercises.map((ex: LoggedExercise) => (
           <div
             key={ex.order_in_session}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs space-y-4"
+            className="bg-surface border border-edge rounded-2xl p-5 sm:p-6 shadow-card space-y-4"
           >
             {/* Exercise Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-edge pb-3">
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center justify-center shrink-0">
+                <span className="w-6 h-6 rounded-lg bg-brand/10 text-brand text-xs font-bold flex items-center justify-center shrink-0">
                   {ex.order_in_session}
                 </span>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                  <h3 className="font-bold text-sm text-ink">
                     {ex.exercise_name}
                   </h3>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-500 capitalize mt-0.5">
+                  <div className="flex items-center gap-2 text-[10px] text-inkSecondary capitalize mt-0.5">
                     <span>{ex.primary_muscle}</span>
                     <span>•</span>
                     <span>{ex.equipment_required}</span>
                     {ex.target_sets && ex.target_reps && (
                       <>
                         <span>•</span>
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        <span className="font-semibold text-brand">
                           Target: {ex.target_sets} sets × {ex.target_reps} reps
                         </span>
                       </>
@@ -864,116 +877,118 @@ export function ActiveWorkoutSessionRunner({
               <button
                 type="button"
                 onClick={() => handleAddSet(ex.order_in_session)}
-                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 self-end sm:self-center cursor-pointer"
+                className="text-xs font-semibold text-brand hover:underline self-end sm:self-center cursor-pointer"
               >
                 + Add Set
               </button>
             </div>
 
             {/* Set by Set Table */}
-            <div className="space-y-2">
-              <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2">
-                <span className="col-span-2 sm:col-span-1">Set</span>
-                <span className="col-span-4 sm:col-span-3">Weight (kg)</span>
-                <span className="col-span-3 sm:col-span-3">Reps</span>
-                <span className="col-span-3 sm:col-span-5 text-right sm:text-left">Status</span>
+            <div className="space-y-2 overflow-x-auto">
+              <div className="min-w-[340px] space-y-2">
+                <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-inkMuted px-2">
+                  <span className="col-span-2 sm:col-span-1">Set</span>
+                  <span className="col-span-4 sm:col-span-3">Weight (kg)</span>
+                  <span className="col-span-3 sm:col-span-3">Reps</span>
+                  <span className="col-span-3 sm:col-span-5 text-right sm:text-left">Status</span>
+                </div>
+
+                {ex.sets.map((set) => {
+                  const isBodyweight = ex.equipment_required === 'bodyweight'
+                  return (
+                    <div
+                      key={set.set_number}
+                      className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl transition ${
+                        set.is_completed
+                          ? 'bg-brand/10 border border-brand/30'
+                          : set.is_skipped
+                          ? 'bg-surfaceMuted opacity-60'
+                          : 'bg-surfaceHover/40 border border-edge'
+                      }`}
+                    >
+                      <span className="col-span-2 sm:col-span-1 text-xs font-bold text-ink">
+                        #{set.set_number}
+                      </span>
+
+                      {/* Weight Input */}
+                      <div className="col-span-4 sm:col-span-3">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          placeholder={isBodyweight ? 'BW' : 'kg'}
+                          aria-label={`Set ${set.set_number} weight in kg`}
+                          value={set.weight_kg ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? null : parseFloat(e.target.value)
+                            handleUpdateSet(ex.order_in_session, set.set_number, 'weight_kg', val)
+                          }}
+                          className="w-full px-2.5 py-1 text-xs rounded-lg bg-surface border border-edge text-ink focus:outline-hidden focus:ring-1 focus:ring-brand"
+                        />
+                      </div>
+
+                      {/* Reps Input */}
+                      <div className="col-span-3 sm:col-span-3">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Reps"
+                          aria-label={`Set ${set.set_number} reps`}
+                          value={set.reps ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? null : parseInt(e.target.value, 10)
+                            handleUpdateSet(ex.order_in_session, set.set_number, 'reps', val)
+                          }}
+                          className="w-full px-2.5 py-1 text-xs rounded-lg bg-surface border border-edge text-ink focus:outline-hidden focus:ring-1 focus:ring-brand"
+                        />
+                      </div>
+
+                      {/* Complete & Skip Toggles */}
+                      <div className="col-span-3 sm:col-span-5 flex items-center justify-end sm:justify-start gap-1.5">
+                        <button
+                          type="button"
+                          aria-label={`Mark set ${set.set_number} as ${set.is_completed ? 'incomplete' : 'complete'}`}
+                          onClick={() => {
+                            handleUpdateSet(
+                              ex.order_in_session,
+                              set.set_number,
+                              'is_completed',
+                              !set.is_completed
+                            )
+                          }}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
+                            set.is_completed
+                              ? 'bg-brand text-white shadow-2xs'
+                              : 'bg-surface border border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'
+                          }`}
+                        >
+                          {set.is_completed ? '✓ Done' : 'Complete'}
+                        </button>
+
+                        <button
+                          type="button"
+                          aria-label={`Skip set ${set.set_number}`}
+                          onClick={() => {
+                            handleUpdateSet(
+                              ex.order_in_session,
+                              set.set_number,
+                              'is_skipped',
+                              !set.is_skipped
+                            )
+                          }}
+                          className={`px-2 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                            set.is_skipped
+                              ? 'bg-surfaceMuted text-inkMuted line-through'
+                              : 'text-inkMuted hover:text-ink'
+                          }`}
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-
-              {ex.sets.map((set) => {
-                const isBodyweight = ex.equipment_required === 'bodyweight'
-                return (
-                  <div
-                    key={set.set_number}
-                    className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl transition ${
-                      set.is_completed
-                        ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40'
-                        : set.is_skipped
-                        ? 'bg-slate-100/70 dark:bg-slate-800/40 opacity-60'
-                        : 'bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <span className="col-span-2 sm:col-span-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      #{set.set_number}
-                    </span>
-
-                    {/* Weight Input */}
-                    <div className="col-span-4 sm:col-span-3">
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        placeholder={isBodyweight ? 'BW' : 'kg'}
-                        aria-label={`Set ${set.set_number} weight in kg`}
-                        value={set.weight_kg ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? null : parseFloat(e.target.value)
-                          handleUpdateSet(ex.order_in_session, set.set_number, 'weight_kg', val)
-                        }}
-                        className="w-full px-2.5 py-1 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    {/* Reps Input */}
-                    <div className="col-span-3 sm:col-span-3">
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Reps"
-                        aria-label={`Set ${set.set_number} reps`}
-                        value={set.reps ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? null : parseInt(e.target.value, 10)
-                          handleUpdateSet(ex.order_in_session, set.set_number, 'reps', val)
-                        }}
-                        className="w-full px-2.5 py-1 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    {/* Complete & Skip Toggles */}
-                    <div className="col-span-3 sm:col-span-5 flex items-center justify-end sm:justify-start gap-1.5">
-                      <button
-                        type="button"
-                        aria-label={`Mark set ${set.set_number} as ${set.is_completed ? 'incomplete' : 'complete'}`}
-                        onClick={() => {
-                          handleUpdateSet(
-                            ex.order_in_session,
-                            set.set_number,
-                            'is_completed',
-                            !set.is_completed
-                          )
-                        }}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
-                          set.is_completed
-                            ? 'bg-emerald-600 text-white shadow-2xs'
-                            : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
-                        }`}
-                      >
-                        {set.is_completed ? '✓ Done' : 'Complete'}
-                      </button>
-
-                      <button
-                        type="button"
-                        aria-label={`Skip set ${set.set_number}`}
-                        onClick={() => {
-                          handleUpdateSet(
-                            ex.order_in_session,
-                            set.set_number,
-                            'is_skipped',
-                            !set.is_skipped
-                          )
-                        }}
-                        className={`px-2 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
-                          set.is_skipped
-                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200'
-                            : 'text-slate-400 hover:text-slate-600'
-                        }`}
-                      >
-                        Skip
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
             </div>
 
             {/* Exercise Notes */}
@@ -982,7 +997,7 @@ export function ActiveWorkoutSessionRunner({
               placeholder="Notes on this movement (tempo, pain-free ROM, RPE...)"
               value={ex.notes || ''}
               onChange={(e) => handleExerciseNotesChange(ex.order_in_session, e.target.value)}
-              className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none"
+              className="w-full px-3 py-1.5 rounded-xl text-xs bg-surfaceMuted/50 border border-edge text-ink placeholder:text-inkMuted focus:outline-hidden"
             />
           </div>
         ))}
@@ -993,20 +1008,21 @@ export function ActiveWorkoutSessionRunner({
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="cancel-workout-modal-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+          <div className="bg-surface border border-edge rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-left">
+            <h3 id="cancel-workout-modal-title" className="text-base font-bold text-danger">
               Cancel Active Workout?
             </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-inkSecondary leading-relaxed">
               Are you sure you want to cancel? Cancelled workouts are archived in history as cancelled and do not count toward completed sessions.
             </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowCancelConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Keep Working Out
               </button>
@@ -1014,7 +1030,7 @@ export function ActiveWorkoutSessionRunner({
                 type="button"
                 onClick={handleCancelWorkout}
                 disabled={actionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-dangerSubtle border border-dangerBorder text-danger hover:opacity-90 shadow-xs cursor-pointer transition disabled:opacity-50"
               >
                 {actionLoading ? 'Cancelling...' : 'Confirm Cancel'}
               </button>
@@ -1028,21 +1044,22 @@ export function ActiveWorkoutSessionRunner({
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="complete-workout-modal-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+          <div className="bg-surface border border-edge rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-left">
+            <h3 id="complete-workout-modal-title" className="text-base font-bold text-ink">
               Finish and Complete Workout?
             </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Summary: <strong className="text-emerald-600">{completedSets}</strong> of {totalSets} sets marked completed.
+            <p className="text-xs text-inkSecondary leading-relaxed">
+              Summary: <strong className="text-brand font-bold">{completedSets}</strong> of {totalSets} sets marked completed.
               {pendingSets > 0 && ` You have ${pendingSets} pending sets remaining.`}
             </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowCompleteConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Continue Workout
               </button>
@@ -1050,7 +1067,7 @@ export function ActiveWorkoutSessionRunner({
                 type="button"
                 onClick={handleCompleteWorkout}
                 disabled={actionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition cursor-pointer disabled:opacity-50"
               >
                 {actionLoading ? 'Saving...' : 'Finish Workout'}
               </button>

@@ -41,6 +41,16 @@ export function WorkoutPlannerView({
   const [regeneratingExerciseId, setRegeneratingExerciseId] = useState<number | null>(null)
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
 
+  // Escape key for confirm dialog
+  useEffect(() => {
+    if (!showGenerateConfirm) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowGenerateConfirm(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showGenerateConfirm])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -146,9 +156,9 @@ export function WorkoutPlannerView({
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center space-y-4">
-        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-slate-500 dark:text-slate-400">Loading workout routine...</p>
+      <div className="bg-surface border border-edge rounded-2xl p-12 text-center space-y-4">
+        <div className="w-8 h-8 border-3 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-inkSecondary">Loading workout routine...</p>
       </div>
     )
   }
@@ -158,27 +168,27 @@ export function WorkoutPlannerView({
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {/* Top Header Card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              <h2 className="text-xl font-bold tracking-tight text-ink">
                 {activePlan ? activePlan.name : 'Weekly Routine Planner'}
               </h2>
               {activePlan && (
-                <span className="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full capitalize">
+                <span className="text-[10px] font-semibold bg-brand/10 text-brand border border-brand/20 px-2.5 py-0.5 rounded-full capitalize">
                   {activePlan.split_type.replace(/_/g, ' ')}
                 </span>
               )}
               {activePlan && !activePlan.is_active && (
-                <span className="text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-semibold bg-surfaceMuted border border-edge text-inkSecondary px-2.5 py-0.5 rounded-full">
                   Historical
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+            <p className="text-xs text-inkSecondary mt-1 max-w-xl leading-relaxed">
               {activePlan
                 ? `Active schedule from ${activePlan.start_date} to ${activePlan.end_date}. Tailored to your experience, duration limits, and equipment access.`
                 : 'Generate a personalized 7-day schedule based on your training profile, weekly availability, and equipment catalogue.'}
@@ -191,7 +201,7 @@ export function WorkoutPlannerView({
                 aria-label="Select workout plan from history"
                 value={activePlan?.id || ''}
                 onChange={(e) => handleSelectHistoryPlan(Number(e.target.value))}
-                className="px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none"
+                className="px-3 py-2 rounded-xl text-xs bg-surface border border-edge text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
               >
                 {historyPlans.map((hp) => (
                   <option key={hp.id} value={hp.id}>
@@ -206,7 +216,7 @@ export function WorkoutPlannerView({
               type="button"
               onClick={handleGenerate}
               disabled={generating}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {generating ? (
                 <>
@@ -215,7 +225,7 @@ export function WorkoutPlannerView({
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   <span>{activePlan ? 'Regenerate Weekly Plan' : 'Generate Weekly Routine'}</span>
@@ -227,9 +237,9 @@ export function WorkoutPlannerView({
 
         {/* Status Alerts */}
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border rounded-xl text-xs text-status-danger-fg flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>{error}</span>
@@ -237,7 +247,7 @@ export function WorkoutPlannerView({
             <button
               type="button"
               onClick={() => void loadData()}
-              className="px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-900/60 hover:bg-rose-200 text-rose-800 dark:text-rose-200 font-semibold cursor-pointer shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-surface border border-status-danger-border text-status-danger-fg font-semibold cursor-pointer shrink-0"
             >
               Retry
             </button>
@@ -245,8 +255,8 @@ export function WorkoutPlannerView({
         )}
 
         {successMessage && (
-          <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div role="status" className="mt-4 p-3 bg-status-success-bg border border-status-success-border rounded-xl text-xs text-status-success-fg flex items-center gap-2">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             <span>{successMessage}</span>
@@ -259,27 +269,28 @@ export function WorkoutPlannerView({
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="replace-active-plan-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+          <div className="bg-surface border border-edge rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-left">
+            <h3 id="replace-active-plan-title" className="text-base font-bold text-ink">
               Replace Active Workout Plan?
             </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-inkSecondary leading-relaxed">
               Generating a new routine will replace your currently active plan. Your current plan will remain accessible in history.
             </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowGenerateConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleGenerate}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition cursor-pointer"
               >
                 Confirm & Generate
               </button>
@@ -290,25 +301,25 @@ export function WorkoutPlannerView({
 
       {/* Empty State */}
       {!activePlan ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-surface border border-edge rounded-2xl p-12 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-brand/10 border border-brand/20 text-brand flex items-center justify-center mx-auto">
+            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+          <h3 className="font-bold text-ink text-base">
             No Active Workout Routine
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-inkSecondary max-w-md mx-auto leading-relaxed">
             You do not currently have an active 7-day routine. Click below to generate a tailored plan matching your saved training days, duration, and available equipment.
           </p>
           <button
             type="button"
             onClick={handleGenerate}
             disabled={generating}
-            className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition inline-flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition inline-flex items-center gap-2 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             <span>Generate Your First Routine</span>
@@ -326,33 +337,34 @@ export function WorkoutPlannerView({
                 <button
                   key={session.id}
                   type="button"
+                  aria-label={dayShort}
                   onClick={() => setSelectedDayIndex(session.day_of_week_index)}
-                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
+                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer ${
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 ring-2 ring-emerald-500/50 shadow-xs'
-                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                      ? 'border-brand bg-brand/10 ring-2 ring-brand/40 shadow-xs'
+                      : 'border-edge bg-surface hover:border-brand/40'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-ink uppercase tracking-wider">
                       {dayShort}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-inkSecondary font-mono">
                       {session.plan_date.slice(5)}
                     </span>
                   </div>
 
                   <div className="mt-3">
                     {session.is_rest_day ? (
-                      <span className="inline-block text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                      <span className="inline-block text-[10px] font-medium text-inkSecondary bg-surfaceMuted border border-edge px-2 py-0.5 rounded-md">
                         Rest Day
                       </span>
                     ) : (
                       <div>
-                        <span className="inline-block text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md">
+                        <span className="inline-block text-[10px] font-semibold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-md">
                           {session.exercises.length} Exercises
                         </span>
-                        <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mt-1 line-clamp-1">
+                        <p className="text-[11px] font-medium text-ink mt-1 line-clamp-1">
                           {session.session_name}
                         </p>
                       </div>
@@ -367,40 +379,40 @@ export function WorkoutPlannerView({
           {selectedSession && (
             <div className="space-y-4">
               {/* Session Banner */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs">
+              <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-bold uppercase tracking-wider text-brand">
                         {selectedSession.day_of_week_name}
                       </span>
-                      <span className="text-xs text-slate-400">•</span>
-                      <span className="text-xs text-slate-500">{selectedSession.plan_date}</span>
+                      <span className="text-xs text-inkMuted">•</span>
+                      <span className="text-xs text-inkSecondary">{selectedSession.plan_date}</span>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                    <h3 className="text-lg font-bold text-ink mt-0.5">
                       {selectedSession.session_name}
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Focus: <span className="font-semibold text-slate-700 dark:text-slate-300">{selectedSession.session_focus}</span>
+                    <p className="text-xs text-inkSecondary mt-0.5">
+                      Focus: <span className="font-semibold text-ink">{selectedSession.session_focus}</span>
                     </p>
                   </div>
 
                   {!selectedSession.is_rest_day && (
                     <div className="flex items-center gap-2">
                       <span
-                        className="px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
+                        className="px-3 py-1 rounded-xl text-xs font-semibold bg-surfaceMuted border border-edge text-inkSecondary flex items-center gap-1.5"
                         title={
                           selectedSession.requested_duration_minutes
                             ? `Estimated workload: ${selectedSession.estimated_duration_minutes} min (Target: ${selectedSession.requested_duration_minutes} min)`
                             : `Estimated workload: ${selectedSession.estimated_duration_minutes} min`
                         }
                       >
-                        <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-3.5 h-3.5 text-inkMuted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>~{selectedSession.estimated_duration_minutes} min</span>
                         {selectedSession.requested_duration_minutes && (
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
+                          <span className="text-[10px] text-inkMuted font-normal">
                             / {selectedSession.requested_duration_minutes}m target
                           </span>
                         )}
@@ -410,9 +422,9 @@ export function WorkoutPlannerView({
                         <button
                           type="button"
                           onClick={() => onStartWorkoutSession(selectedSession.id)}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                          className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
@@ -425,15 +437,15 @@ export function WorkoutPlannerView({
 
                 {/* Warm-up & Cool-down boxes */}
                 {selectedSession.is_rest_day ? (
-                  <div className="mt-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1">
-                    <p className="font-semibold text-slate-800 dark:text-slate-200">
+                  <div className="mt-5 p-4 rounded-xl bg-surfaceMuted border border-edge text-xs text-inkSecondary space-y-1">
+                    <p className="font-bold text-ink">
                       Recovery & Adaptation Day
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                    <p className="leading-relaxed">
                       Muscle protein synthesis and neuromuscular repair occur during rest. Prioritize hydration, 7–9 hours of sleep, and your targeted daily nutrition goals.
                     </p>
                     {selectedSession.warmup_notes && (
-                      <p className="text-slate-400 text-[11px] pt-1">
+                      <p className="text-inkMuted text-[11px] pt-1">
                         Tip: {selectedSession.warmup_notes}
                       </p>
                     )}
@@ -441,21 +453,21 @@ export function WorkoutPlannerView({
                 ) : (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                     {selectedSession.warmup_notes && (
-                      <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-blue-900 dark:text-blue-300">
-                        <span className="font-bold text-[11px] uppercase tracking-wider block mb-0.5">
+                      <div className="p-3.5 rounded-xl bg-brand/10 border border-brand/20 text-ink">
+                        <span className="font-bold text-[11px] text-brand uppercase tracking-wider block mb-0.5">
                           Warm-up Routine
                         </span>
-                        <p className="text-[11px] leading-relaxed opacity-90">
+                        <p className="text-[11px] text-inkSecondary leading-relaxed">
                           {selectedSession.warmup_notes}
                         </p>
                       </div>
                     )}
                     {selectedSession.cooldown_notes && (
-                      <div className="p-3 rounded-xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/60 dark:border-teal-900/40 text-teal-900 dark:text-teal-300">
-                        <span className="font-bold text-[11px] uppercase tracking-wider block mb-0.5">
+                      <div className="p-3.5 rounded-xl bg-surfaceMuted border border-edge text-ink">
+                        <span className="font-bold text-[11px] text-brand uppercase tracking-wider block mb-0.5">
                           Cool-down & Mobility
                         </span>
-                        <p className="text-[11px] leading-relaxed opacity-90">
+                        <p className="text-[11px] text-inkSecondary leading-relaxed">
                           {selectedSession.cooldown_notes}
                         </p>
                       </div>
@@ -467,7 +479,7 @@ export function WorkoutPlannerView({
               {/* Planned Exercise Cards */}
               {!selectedSession.is_rest_day && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-inkSecondary px-1">
                     Prescribed Movements ({selectedSession.exercises.length})
                   </h4>
 
@@ -476,25 +488,25 @@ export function WorkoutPlannerView({
                     return (
                       <div
                         key={plannedEx.id}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs transition hover:border-slate-300 dark:hover:border-slate-700"
+                        className="bg-surface border border-edge rounded-2xl p-5 shadow-xs transition hover:border-brand/40"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                           <div className="flex items-start gap-3">
-                            <span className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">
+                            <span className="w-6 h-6 rounded-lg bg-brand/10 border border-brand/20 text-brand text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">
                               {plannedEx.order_in_session}
                             </span>
                             <div>
-                              <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                              <h5 className="text-sm font-bold text-ink">
                                 {plannedEx.exercise_name}
                               </h5>
                               <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px]">
-                                <span className="capitalize px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                                <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-ink font-medium">
                                   {plannedEx.primary_muscle}
                                 </span>
-                                <span className="capitalize px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                                <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-inkSecondary font-medium">
                                   {plannedEx.movement_category.replace(/_/g, ' ')}
                                 </span>
-                                <span className="capitalize px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                                <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-inkSecondary font-medium">
                                   {plannedEx.equipment_required}
                                 </span>
                               </div>
@@ -508,13 +520,13 @@ export function WorkoutPlannerView({
                               onClick={() => handleRegenerate(plannedEx.id)}
                               disabled={isRegenerating}
                               aria-label={`Regenerate ${plannedEx.exercise_name}`}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
                               title="Regenerate this exercise slot with a compatible movement"
                             >
                               {isRegenerating ? (
-                                <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                <div className="w-3 h-3 border-2 border-brand border-t-transparent rounded-full animate-spin" />
                               ) : (
-                                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="w-3.5 h-3.5 text-inkSecondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                               )}
@@ -525,10 +537,10 @@ export function WorkoutPlannerView({
                               type="button"
                               onClick={() => setExerciseToReplace(plannedEx)}
                               aria-label={`Replace ${plannedEx.exercise_name}`}
-                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-edge hover:bg-surfaceMuted text-ink transition flex items-center gap-1 cursor-pointer bg-surface"
                               title="Select a replacement exercise from catalogue"
                             >
-                              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-3.5 h-3.5 text-inkSecondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                               </svg>
                               <span>Replace</span>
@@ -537,30 +549,30 @@ export function WorkoutPlannerView({
                         </div>
 
                         {/* Prescription Badges */}
-                        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-center">
-                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+                        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-edge text-center">
+                          <div className="p-2.5 rounded-xl bg-surfaceMuted border border-edge">
+                            <span className="text-[10px] text-inkSecondary font-semibold uppercase tracking-wider block">
                               Sets
                             </span>
-                            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            <span className="text-sm font-bold text-ink">
                               {plannedEx.target_sets} Sets
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+                          <div className="p-2.5 rounded-xl bg-surfaceMuted border border-edge">
+                            <span className="text-[10px] text-inkSecondary font-semibold uppercase tracking-wider block">
                               Reps
                             </span>
-                            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            <span className="text-sm font-bold text-ink">
                               {plannedEx.target_reps} Reps
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+                          <div className="p-2.5 rounded-xl bg-surfaceMuted border border-edge">
+                            <span className="text-[10px] text-inkSecondary font-semibold uppercase tracking-wider block">
                               Rest
                             </span>
-                            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            <span className="text-sm font-bold text-ink">
                               {plannedEx.rest_seconds}s Rest
                             </span>
                           </div>
@@ -569,15 +581,15 @@ export function WorkoutPlannerView({
                         {/* Progression & Warm-up Notes */}
                         <div className="mt-3 space-y-2 text-[11px]">
                           {plannedEx.progression_notes && (
-                            <div className="p-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 text-amber-900 dark:text-amber-300">
+                            <div className="p-2.5 rounded-xl bg-status-warning-bg border border-status-warning-border text-status-warning-fg">
                               <span className="font-bold mr-1.5">Progression Cue:</span>
-                              <span className="leading-relaxed opacity-90">{plannedEx.progression_notes}</span>
+                              <span className="leading-relaxed">{plannedEx.progression_notes}</span>
                             </div>
                           )}
 
                           {plannedEx.warmup_guidance && (
-                            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-                              <span className="font-bold mr-1.5 text-slate-700 dark:text-slate-300">Warm-up:</span>
+                            <div className="p-2.5 rounded-xl bg-surfaceMuted border border-edge text-inkSecondary">
+                              <span className="font-bold mr-1.5 text-ink">Warm-up:</span>
                               <span className="leading-relaxed">{plannedEx.warmup_guidance}</span>
                             </div>
                           )}
@@ -593,12 +605,12 @@ export function WorkoutPlannerView({
       )}
 
       {/* Non-medical Disclaimer */}
-      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-start gap-3">
-        <svg className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="p-4 rounded-2xl bg-surface border border-edge text-xs text-inkSecondary flex items-start gap-3">
+        <svg className="w-5 h-5 text-inkMuted shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="leading-relaxed text-[11px]">
-          <span className="font-bold text-slate-700 dark:text-slate-300">Planning & Safety Notice:</span> Workout routines generated by this system are algorithmic recommendations based on standard progressive resistance training principles and your equipment inputs. They are not medical or physical therapy advice. Always execute movements with strict biomechanics, warm up appropriately, and adjust volume or loads if you experience sharp pain.
+          <span className="font-bold text-ink">Planning & Safety Notice:</span> Workout routines generated by this system are algorithmic recommendations based on standard progressive resistance training principles and your equipment inputs. They are not medical or physical therapy advice. Always execute movements with strict biomechanics, warm up appropriately, and adjust volume or loads if you experience sharp pain.
         </p>
       </div>
 

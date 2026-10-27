@@ -24,6 +24,14 @@ export function ExerciseReplaceModal({
   const [filterQuery, setFilterQuery] = useState('')
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
     async function loadAlternatives() {
       setLoading(true)
       setError(null)
@@ -83,137 +91,133 @@ export function ExerciseReplaceModal({
       aria-labelledby="replace-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-surface border border-edge rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-left">
         {/* Header */}
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div className="p-5 border-b border-edge flex items-center justify-between">
           <div>
             <h3
               id="replace-modal-title"
-              className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+              className="text-base font-bold text-ink flex items-center gap-2"
             >
               <span>Replace Planned Exercise</span>
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Replacing <span className="font-semibold text-slate-700 dark:text-slate-300">{plannedExercise.exercise_name}</span> with a compatible catalogue movement.
+            <p className="text-xs text-inkSecondary mt-0.5">
+              Replacing <span className="font-semibold text-ink">{plannedExercise.exercise_name}</span> with a compatible catalogue movement.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-            aria-label="Close replace dialog"
+            className="text-inkSecondary hover:text-ink transition p-1.5 rounded-lg hover:bg-surfaceMuted cursor-pointer"
+            aria-label="Close dialog"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-5 overflow-y-auto space-y-4 flex-1">
-          {error && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
-              {error}
-            </div>
-          )}
+        {/* Error Alert */}
+        {error && (
+          <div role="alert" className="m-4 p-3 bg-status-danger-bg border border-status-danger-border text-xs text-status-danger-fg rounded-xl">
+            {error}
+          </div>
+        )}
 
+        {/* Search Filter */}
+        <div className="p-4 border-b border-edge bg-surfaceMuted">
+          <input
+            type="text"
+            placeholder="Filter compatible alternatives..."
+            aria-label="Filter compatible alternatives"
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            className="w-full px-3.5 py-2 rounded-xl text-xs bg-surface border border-edge text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
+          />
+        </div>
+
+        {/* Alternatives List */}
+        <div className="p-4 overflow-y-auto flex-1 space-y-2">
           {loading ? (
-            <div className="p-8 text-center space-y-3">
-              <div className="w-7 h-7 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-slate-400">Searching compatible catalogue alternatives...</p>
+            <div className="py-12 text-center text-xs text-inkSecondary flex flex-col items-center justify-center gap-2">
+              <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+              <span>Finding biomechanically compatible alternatives...</span>
             </div>
-          ) : alternatives.length === 0 ? (
-            <div className="p-8 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                No compatible alternatives found
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                No other exercises match this movement category and your configured equipment/exclusion constraints.
-              </p>
+          ) : filteredAlternatives.length === 0 ? (
+            <div className="py-8 text-center text-xs text-inkSecondary">
+              No compatible alternatives found matching your equipment or search.
             </div>
           ) : (
-            <>
-              {/* Search filter within alternatives */}
-              <input
-                type="text"
-                placeholder="Filter compatible alternatives..."
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
+            filteredAlternatives.map((alt) => {
+              const isSelected = selectedExerciseId === alt.id
+              return (
+                <button
+                  key={alt.id}
+                  type="button"
+                  onClick={() => setSelectedExerciseId(alt.id)}
+                  className={`w-full text-left p-3.5 rounded-xl border transition flex items-center justify-between cursor-pointer ${
+                    isSelected
+                      ? 'border-brand bg-brand/10 ring-1 ring-brand'
+                      : 'border-edge hover:border-brand/40 bg-surface'
+                  }`}
+                >
+                  <div>
+                    <h4 className="text-xs font-bold text-ink">
+                      {alt.name}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px]">
+                      <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-ink font-medium">
+                        {alt.primary_muscle}
+                      </span>
+                      <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-inkSecondary font-medium">
+                        {alt.movement_category.replace(/_/g, ' ')}
+                      </span>
+                      <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-inkSecondary font-medium">
+                        {alt.equipment_required}
+                      </span>
+                      <span className="capitalize px-2 py-0.5 rounded-md bg-surfaceMuted border border-edge text-inkSecondary font-medium">
+                        {alt.difficulty_level}
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  Eligible Movements ({filteredAlternatives.length})
-                </span>
-
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {filteredAlternatives.map((alt) => {
-                    const isSelected = selectedExerciseId === alt.id
-                    return (
-                      <button
-                        key={alt.id}
-                        type="button"
-                        onClick={() => setSelectedExerciseId(alt.id)}
-                        className={`w-full p-3 rounded-xl border text-left transition flex items-center justify-between ${
-                          isSelected
-                            ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500'
-                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
-                        }`}
-                      >
-                        <div>
-                          <div className="font-bold text-xs text-slate-900 dark:text-slate-100">
-                            {alt.name}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                            <span className="capitalize">{alt.primary_muscle}</span>
-                            <span>•</span>
-                            <span className="capitalize">{alt.movement_category.replace(/_/g, ' ')}</span>
-                            <span>•</span>
-                            <span className="capitalize">{alt.equipment_required}</span>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                            isSelected
-                              ? 'border-emerald-600 bg-emerald-600 text-white'
-                              : 'border-slate-300 dark:border-slate-600'
-                          }`}
-                        >
-                          {isSelected && <span className="text-[10px]">✓</span>}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </>
+                  <div className="shrink-0 ml-3">
+                    <span
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                        isSelected
+                          ? 'border-brand bg-brand text-white'
+                          : 'border-edge bg-surface'
+                      }`}
+                    >
+                      {isSelected && (
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                  </div>
+                </button>
+              )
+            })
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-end gap-2">
+        <div className="p-4 border-t border-edge flex items-center justify-end gap-2.5 bg-surfaceMuted">
           <button
             type="button"
             onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50"
+            className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surface hover:bg-surfaceRaised transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={saving || !selectedExerciseId || alternatives.length === 0}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            disabled={saving || !selectedExerciseId || loading}
+            className="px-5 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition disabled:opacity-50 cursor-pointer"
           >
-            {saving ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Replacing...</span>
-              </>
-            ) : (
-              <span>Confirm Replacement</span>
-            )}
+            {saving ? 'Replacing...' : 'Confirm Replacement'}
           </button>
         </div>
       </div>

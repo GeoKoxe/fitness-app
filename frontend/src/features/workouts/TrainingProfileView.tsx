@@ -70,6 +70,20 @@ export function TrainingProfileView() {
   const [excludedExercises, setExcludedExercises] = useState<string[]>([])
   const [considerations, setConsiderations] = useState<string>('')
 
+  // Escape key handler for open modals
+  useEffect(() => {
+    if (!showSaveModal && !showRenameModal && !showDeleteModal) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowSaveModal(false)
+        setShowRenameModal(false)
+        setShowDeleteModal(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showSaveModal, showRenameModal, showDeleteModal])
+
   // Helper to load draft from sessionStorage
   const getStoredDraft = (): DraftData | null => {
     try {
@@ -126,7 +140,7 @@ export function TrainingProfileView() {
       }
 
       await loadSavedConfigs()
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load training profile.')
     } finally {
       setLoading(false)
@@ -137,26 +151,45 @@ export function TrainingProfileView() {
     void loadData()
   }, [loadData])
 
-  // Sync draft to sessionStorage on state change
-  useEffect(() => {
-    if (loading) return
-    const draft: DraftData = {
-      experienceLevel,
-      trainingGoals,
-      availableDays,
-      durationMinutes,
-      availableEquipment,
-      excludedMuscles,
-      excludedExercises,
-      considerations,
-    }
-    try {
-      sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
-    } catch {
-      // Ignore quota errors
-    }
+  // Check if current form is dirty relative to initial saved state
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialProfile) return false
+
+    const initialGoals = initialProfile.training_goals || ['general_fitness']
+    const initialDays = initialProfile.available_days || ['monday', 'wednesday', 'friday']
+    const initialDuration = initialProfile.preferred_duration_minutes || 60
+    const initialEquip = initialProfile.available_equipment || ['bodyweight', 'dumbbell']
+    const initialExMuscles = initialProfile.excluded_muscle_groups || []
+    const initialExEx = initialProfile.excluded_exercises || []
+    const initialNotes = initialProfile.training_considerations || ''
+
+    if ((initialProfile.experience_level || 'beginner') !== experienceLevel) return true
+    if (initialDuration !== durationMinutes) return true
+    if (initialNotes !== considerations) return true
+
+    const sortedGoals = [...trainingGoals].sort()
+    const sortedInitGoals = [...initialGoals].sort()
+    if (JSON.stringify(sortedGoals) !== JSON.stringify(sortedInitGoals)) return true
+
+    const sortedDays = [...availableDays].sort()
+    const sortedInitDays = [...initialDays].sort()
+    if (JSON.stringify(sortedDays) !== JSON.stringify(sortedInitDays)) return true
+
+    const sortedEquip = [...availableEquipment].sort()
+    const sortedInitEquip = [...initialEquip].sort()
+    if (JSON.stringify(sortedEquip) !== JSON.stringify(sortedInitEquip)) return true
+
+    const sortedExMuscles = [...excludedMuscles].sort()
+    const sortedInitExMuscles = [...initialExMuscles].sort()
+    if (JSON.stringify(sortedExMuscles) !== JSON.stringify(sortedInitExMuscles)) return true
+
+    const sortedExEx = [...excludedExercises].sort()
+    const sortedInitExEx = [...initialExEx].sort()
+    if (JSON.stringify(sortedExEx) !== JSON.stringify(sortedInitExEx)) return true
+
+    return false
   }, [
-    loading,
+    initialProfile,
     experienceLevel,
     trainingGoals,
     availableDays,
@@ -167,36 +200,34 @@ export function TrainingProfileView() {
     considerations,
   ])
 
-  // Compute whether user has unsaved changes compared to initial saved profile
-  const hasUnsavedChanges = useMemo(() => {
-    if (!initialProfile) return false
-    const initGoals = initialProfile.training_goals || ['general_fitness']
-    const initDays = initialProfile.available_days || ['monday', 'wednesday', 'friday']
-    const initEquip = initialProfile.available_equipment || ['bodyweight', 'dumbbell']
-    const initMuscles = initialProfile.excluded_muscle_groups || []
-    const initEx = initialProfile.excluded_exercises || []
-    const initDuration = initialProfile.preferred_duration_minutes || 60
-    const initLevel = initialProfile.experience_level || 'beginner'
-    const initNotes = initialProfile.training_considerations || ''
-
-    const arraysEqual = (a: string[], b: string[]) => {
-      if (a.length !== b.length) return false
-      const sa = [...a].sort()
-      const sb = [...b].sort()
-      return sa.every((val, idx) => val === sb[idx])
+  // Sync draft to sessionStorage on changes
+  useEffect(() => {
+    if (!initialProfile) return
+    if (hasUnsavedChanges) {
+      const draft: DraftData = {
+        experienceLevel,
+        trainingGoals,
+        availableDays,
+        durationMinutes,
+        availableEquipment,
+        excludedMuscles,
+        excludedExercises,
+        considerations,
+      }
+      try {
+        sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+      } catch {
+        // Storage fail non-fatal
+      }
+    } else {
+      try {
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY)
+      } catch {
+        // Ignore
+      }
     }
-
-    if (experienceLevel !== initLevel) return true
-    if (durationMinutes !== initDuration) return true
-    if ((considerations || '') !== (initNotes || '')) return true
-    if (!arraysEqual(trainingGoals, initGoals)) return true
-    if (!arraysEqual(availableDays, initDays)) return true
-    if (!arraysEqual(availableEquipment, initEquip)) return true
-    if (!arraysEqual(excludedMuscles, initMuscles)) return true
-    if (!arraysEqual(excludedExercises, initEx)) return true
-
-    return false
   }, [
+    hasUnsavedChanges,
     initialProfile,
     experienceLevel,
     trainingGoals,
@@ -490,25 +521,25 @@ export function TrainingProfileView() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-4">
-        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-slate-500 dark:text-slate-400">Loading training profile and equipment settings...</p>
+      <div className="bg-surface border border-edge rounded-2xl p-10 text-center space-y-4">
+        <div className="w-8 h-8 border-3 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-inkSecondary">Loading training profile and equipment settings...</p>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-6">
+    <form onSubmit={handleSave} className="space-y-6 text-left">
       {/* Unsaved Changes Banner */}
       {hasUnsavedChanges && (
-        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+        <div className="bg-status-warning-bg border border-status-warning-border rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span className="w-2.5 h-2.5 rounded-full bg-status-warning-fg animate-pulse shrink-0" aria-hidden="true" />
             <div>
-              <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+              <p className="text-xs font-bold text-status-warning-fg">
                 You have unsaved changes to this profile
               </p>
-              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+              <p className="text-[11px] text-inkSecondary">
                 Edits are preserved across tabs. Commit changes to update routine generation.
               </p>
             </div>
@@ -518,7 +549,7 @@ export function TrainingProfileView() {
               type="button"
               onClick={handleDiscardChanges}
               disabled={saving}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-status-warning-border text-status-warning-fg hover:bg-surface transition cursor-pointer"
             >
               Discard Edits
             </button>
@@ -526,7 +557,7 @@ export function TrainingProfileView() {
               type="button"
               onClick={() => handleSave()}
               disabled={saving}
-              className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -535,17 +566,17 @@ export function TrainingProfileView() {
       )}
 
       {/* Header Banner */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h2 className="text-xl font-bold tracking-tight text-ink flex items-center gap-2">
+              <svg className="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               Training Profile & Equipment
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
+            <p className="text-xs text-inkSecondary mt-1 max-w-2xl leading-relaxed">
               Define your lifting experience, weekly availability, gear access, and exercise exclusions. These parameters drive weekly workout routines.
             </p>
           </div>
@@ -555,14 +586,14 @@ export function TrainingProfileView() {
               type="button"
               onClick={handleDiscardChanges}
               disabled={saving || !hasUnsavedChanges}
-              className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted transition disabled:opacity-50 cursor-pointer"
             >
               Reset
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {saving ? (
                 <>
@@ -571,7 +602,7 @@ export function TrainingProfileView() {
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   <span>Save Configuration</span>
@@ -583,8 +614,8 @@ export function TrainingProfileView() {
 
         {/* Status Messages */}
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border rounded-xl text-xs text-status-danger-fg flex items-center gap-2">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>{error}</span>
@@ -592,8 +623,8 @@ export function TrainingProfileView() {
         )}
 
         {successMessage && (
-          <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div role="status" className="mt-4 p-3 bg-status-success-bg border border-status-success-border rounded-xl text-xs text-status-success-fg flex items-center gap-2">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>{successMessage}</span>
@@ -602,16 +633,16 @@ export function TrainingProfileView() {
       </div>
 
       {/* Saved Named Profile Configurations Toolbar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <svg className="w-4 h-4 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+              <svg className="w-4 h-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
               </svg>
               <span>Saved Training Profile Presets</span>
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-inkSecondary mt-0.5">
               Save named setups (e.g. Travel Bodyweight, Gym Strength, Home 30-min) and switch instantly.
             </p>
           </div>
@@ -623,9 +654,9 @@ export function TrainingProfileView() {
               setNewConfigDesc('')
               setShowSaveModal(true)
             }}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-brand/10 hover:bg-brand/20 text-brand border border-brand/20 transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             <span>Save as New Profile</span>
@@ -637,7 +668,7 @@ export function TrainingProfileView() {
             aria-label="Select saved configuration"
             value={selectedSavedId ?? ''}
             onChange={(e) => setSelectedSavedId(e.target.value ? Number(e.target.value) : null)}
-            className="flex-1 min-w-[220px] px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="flex-1 min-w-[220px] px-3 py-2 rounded-xl text-xs bg-surface border border-edge text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
           >
             <option value="">Select a saved configuration...</option>
             {savedConfigs.map((cfg) => (
@@ -652,7 +683,7 @@ export function TrainingProfileView() {
               <button
                 type="button"
                 onClick={() => handleLoadSavedConfigIntoEditor(selectedConfig)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-surfaceMuted border border-edge text-ink hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Load into Form
               </button>
@@ -660,7 +691,7 @@ export function TrainingProfileView() {
                 type="button"
                 onClick={() => handleApplySavedConfigDirectly(selectedConfig.id)}
                 disabled={savedActionLoading}
-                className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 Apply to Active
               </button>
@@ -670,14 +701,14 @@ export function TrainingProfileView() {
                   setRenameConfigName(selectedConfig.name)
                   setShowRenameModal(true)
                 }}
-                className="px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="px-3 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted transition cursor-pointer"
               >
                 Rename
               </button>
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(true)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                className="px-3 py-2 rounded-xl text-xs font-semibold border border-status-danger-border text-status-danger-fg hover:bg-status-danger-bg transition cursor-pointer"
               >
                 Delete
               </button>
@@ -686,22 +717,22 @@ export function TrainingProfileView() {
         </div>
 
         {selectedConfig?.description && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+          <p className="text-xs text-inkSecondary italic">
             "{selectedConfig.description}"
           </p>
         )}
       </div>
 
       {/* 1. Experience Level Selection */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h3 className="text-sm font-bold text-ink flex items-center gap-2">
             <span>1. Experience Level</span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-[10px] text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full font-medium">
               Required
             </span>
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-inkSecondary mt-0.5">
             Select your resistance training background to set baseline exercise complexity and progressive overload schemes.
           </p>
         </div>
@@ -715,39 +746,39 @@ export function TrainingProfileView() {
                 type="button"
                 aria-label={lvl.label}
                 onClick={() => setExperienceLevel(lvl.value)}
-                className={`text-left p-4 rounded-xl border transition relative flex flex-col justify-between ${
+                className={`text-left p-4 rounded-xl border transition relative flex flex-col justify-between cursor-pointer ${
                   isSelected
-                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
+                    ? 'border-brand bg-brand/10 ring-1 ring-brand'
+                    : 'border-edge hover:border-brand/40 bg-surface'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                    <span className="font-bold text-sm text-ink">
                       {lvl.label}
                     </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${
                       isSelected
-                        ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        ? 'bg-brand text-white border-brand'
+                        : 'bg-surfaceMuted text-inkSecondary border-edge'
                     }`}>
                       {lvl.subtitle}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                  <p className="text-xs text-inkSecondary mt-2 leading-relaxed">
                     {lvl.description}
                   </p>
                 </div>
-                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <div className="mt-3 pt-2 border-t border-edge flex items-center gap-1.5 text-[11px] font-semibold text-brand">
                   {isSelected ? (
                     <>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                       <span>Active Selection</span>
                     </>
                   ) : (
-                    <span className="text-slate-400 font-normal">Click to select</span>
+                    <span className="text-inkMuted font-normal">Click to select</span>
                   )}
                 </div>
               </button>
@@ -757,15 +788,15 @@ export function TrainingProfileView() {
       </div>
 
       {/* 2. Training Goals */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h3 className="text-sm font-bold text-ink flex items-center gap-2">
             <span>2. Primary Training Goals</span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-[10px] text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full font-medium">
               Multiple Allowed
             </span>
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-inkSecondary mt-0.5">
             Choose one or more objectives to optimize rep ranges, rest intervals, and volume density.
           </p>
         </div>
@@ -779,30 +810,30 @@ export function TrainingProfileView() {
                 type="button"
                 aria-label={goal.label}
                 onClick={() => toggleGoal(goal.value)}
-                className={`text-left p-3.5 rounded-xl border transition flex items-start gap-3 ${
+                className={`text-left p-3.5 rounded-xl border transition flex items-start gap-3 cursor-pointer ${
                   isSelected
-                    ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-500'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
+                    ? 'border-brand bg-brand/10 ring-1 ring-brand'
+                    : 'border-edge hover:border-brand/40 bg-surface'
                 }`}
               >
                 <div
                   className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                     isSelected
-                      ? 'bg-emerald-600 border-emerald-600 text-white'
-                      : 'border-slate-300 dark:border-slate-600'
+                      ? 'bg-brand border-brand text-white'
+                      : 'border-edge bg-surface'
                   }`}
                 >
                   {isSelected && (
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
                 </div>
                 <div>
-                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">
+                  <span className="font-bold text-xs text-ink block">
                     {goal.label}
                   </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 block leading-normal">
+                  <span className="text-[11px] text-inkSecondary mt-0.5 block leading-normal">
                     {goal.description}
                   </span>
                 </div>
@@ -815,17 +846,17 @@ export function TrainingProfileView() {
       {/* 3. Weekly Availability & Preferred Duration */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Available Training Days */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+        <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <h3 className="text-sm font-bold text-ink">
                 3. Available Workout Days
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-inkSecondary mt-0.5">
                 Explicit weekdays you can commit to exercising.
               </p>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-brand/10 text-brand border border-brand/20">
               {availableDays.length} {availableDays.length === 1 ? 'day' : 'days'} / wk
             </span>
           </div>
@@ -839,10 +870,10 @@ export function TrainingProfileView() {
                   type="button"
                   aria-label={day.label}
                   onClick={() => toggleDay(day.value)}
-                  className={`py-3 px-1 rounded-xl text-center border transition flex flex-col items-center gap-1 ${
+                  className={`py-3 px-1 rounded-xl text-center border transition flex flex-col items-center gap-1 cursor-pointer ${
                     isSelected
-                      ? 'border-emerald-500 bg-emerald-600 text-white font-bold shadow-xs'
-                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      ? 'border-brand bg-brand text-white font-bold shadow-xs'
+                      : 'border-edge bg-surface text-inkSecondary hover:bg-surfaceMuted'
                   }`}
                 >
                   <span className="text-[11px] uppercase tracking-wider">{day.short}</span>
@@ -852,27 +883,27 @@ export function TrainingProfileView() {
             })}
           </div>
 
-          <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 text-[11px] text-inkSecondary">
             <span>Quick split presets:</span>
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setAvailableDays(['monday', 'wednesday', 'friday'])}
-                className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300"
+                className="px-2 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink transition cursor-pointer"
               >
                 3-Day (M/W/F)
               </button>
               <button
                 type="button"
                 onClick={() => setAvailableDays(['monday', 'tuesday', 'thursday', 'friday'])}
-                className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300"
+                className="px-2 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink transition cursor-pointer"
               >
                 4-Day Upper/Lower
               </button>
               <button
                 type="button"
                 onClick={() => setAvailableDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])}
-                className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300"
+                className="px-2 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink transition cursor-pointer"
               >
                 5-Day Split
               </button>
@@ -881,35 +912,36 @@ export function TrainingProfileView() {
         </div>
 
         {/* Preferred Workout Duration with strict 15-minute steps */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+        <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <h3 className="text-sm font-bold text-ink">
                 4. Preferred Session Duration
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-inkSecondary mt-0.5">
                 Target workout time per session (15 – 180 min, in 15-min increments).
               </p>
             </div>
             <div className="text-right">
-              <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+              <span className="text-lg font-extrabold text-ink">
                 {durationMinutes}
               </span>
-              <span className="text-xs text-slate-500 ml-1">minutes</span>
+              <span className="text-xs text-inkSecondary ml-1">minutes</span>
             </div>
           </div>
 
           <div className="space-y-3 pt-2">
             <input
               type="range"
+              aria-label="Preferred workout duration in minutes"
               min={15}
               max={180}
               step={15}
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(Number(e.target.value))}
-              className="w-full accent-emerald-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+              className="w-full accent-brand h-2 bg-surfaceMuted border border-edge rounded-lg cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] text-slate-400">
+            <div className="flex justify-between text-[10px] text-inkSecondary">
               <span>15m</span>
               <span>45m</span>
               <span>60m</span>
@@ -920,7 +952,7 @@ export function TrainingProfileView() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 text-[11px] text-inkSecondary">
             <span>Duration presets:</span>
             <div className="flex flex-wrap gap-1.5">
               {[15, 30, 45, 60, 75, 90, 120].map((m) => (
@@ -928,10 +960,10 @@ export function TrainingProfileView() {
                   key={m}
                   type="button"
                   onClick={() => setDurationMinutes(m)}
-                  className={`px-2.5 py-1 rounded transition text-xs font-medium cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg transition text-xs font-semibold cursor-pointer border ${
                     durationMinutes === m
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                      ? 'bg-brand text-white border-brand shadow-xs'
+                      : 'bg-surfaceMuted border-edge text-ink hover:bg-surfaceRaised'
                   }`}
                 >
                   {m}m
@@ -943,46 +975,46 @@ export function TrainingProfileView() {
       </div>
 
       {/* 4. Equipment Configuration */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
               <span>5. Available Equipment</span>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full font-medium">
                 {availableEquipment.length} Selected
               </span>
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-inkSecondary mt-0.5">
               Check all equipment you have access to. If none selected, bodyweight movements are automatically used.
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             <button
               type="button"
               onClick={() => setAvailableEquipment(validEquipmentOptions.map((e) => e.value))}
-              className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink font-medium transition cursor-pointer"
             >
               Select All
             </button>
             <button
               type="button"
               onClick={() => setAvailableEquipment(['bodyweight'])}
-              className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink font-medium transition cursor-pointer"
             >
               Bodyweight Only
             </button>
             <button
               type="button"
               onClick={() => setAvailableEquipment(DEFAULT_AVAILABLE_EQUIPMENT)}
-              className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink font-medium transition cursor-pointer"
             >
               Standard Gym
             </button>
             <button
               type="button"
               onClick={() => setAvailableEquipment([])}
-              className="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-surfaceMuted hover:bg-surfaceRaised border border-edge text-ink font-medium transition cursor-pointer"
             >
               Clear
             </button>
@@ -1000,20 +1032,20 @@ export function TrainingProfileView() {
                 onClick={() => toggleEquipment(eq.value)}
                 className={`p-3 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
                   isSelected
-                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-slate-900 dark:text-slate-100 ring-1 ring-emerald-500'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
+                    ? 'border-brand bg-brand/10 text-ink ring-1 ring-brand'
+                    : 'border-edge hover:border-brand/40 bg-surface text-inkSecondary'
                 }`}
               >
                 <span className="text-xs font-semibold">{eq.label}</span>
                 <div
                   className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
                     isSelected
-                      ? 'bg-emerald-600 border-emerald-600 text-white'
-                      : 'border-slate-300 dark:border-slate-600'
+                      ? 'bg-brand border-brand text-white'
+                      : 'border-edge bg-surface'
                   }`}
                 >
                   {isSelected && (
-                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   )}
@@ -1027,17 +1059,17 @@ export function TrainingProfileView() {
       {/* 5. Exclusions (Muscle Groups & Specific Exercises) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Muscle Group Exclusions */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+        <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
               <span>6. Excluded Muscle Groups</span>
               {excludedMuscles.length > 0 && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full font-medium">
+                <span className="text-[10px] text-status-warning-fg bg-status-warning-bg border border-status-warning-border px-2 py-0.5 rounded-full font-medium">
                   {excludedMuscles.length} Excluded
                 </span>
               )}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-inkSecondary mt-0.5">
               Select muscle groups to avoid due to acute injury, rehab, or joint limitations.
             </p>
           </div>
@@ -1052,8 +1084,8 @@ export function TrainingProfileView() {
                   onClick={() => toggleExcludedMuscle(m.value)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
                     isExcluded
-                      ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-400 dark:border-amber-700 text-amber-800 dark:text-amber-300'
-                      : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                      ? 'bg-status-warning-bg border-status-warning-border text-status-warning-fg'
+                      : 'border-edge bg-surfaceMuted text-ink hover:bg-surfaceRaised'
                   }`}
                 >
                   {isExcluded ? `✕ ${m.label}` : m.label}
@@ -1065,7 +1097,7 @@ export function TrainingProfileView() {
             <button
               type="button"
               onClick={() => setExcludedMuscles([])}
-              className="text-[11px] text-slate-400 hover:text-slate-600 underline block cursor-pointer"
+              className="text-[11px] text-inkSecondary hover:text-ink underline block cursor-pointer"
             >
               Clear all muscle exclusions
             </button>
@@ -1073,37 +1105,37 @@ export function TrainingProfileView() {
         </div>
 
         {/* Specific Exercise Exclusions */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+        <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
               <span>7. Excluded Specific Exercises</span>
               {excludedExercises.length > 0 && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full font-medium">
+                <span className="text-[10px] text-status-warning-fg bg-status-warning-bg border border-status-warning-border px-2 py-0.5 rounded-full font-medium">
                   {excludedExercises.length} Excluded
                 </span>
               )}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-inkSecondary mt-0.5">
               Exclude specific movements you cannot perform or wish to avoid.
             </p>
           </div>
 
           {/* Active excluded exercise pills */}
           {excludedExercises.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-800/20">
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 border border-edge rounded-xl bg-surfaceMuted">
               {excludedExercises.map((slug) => {
                 const ex = catalogueExercises.find((e) => e.slug === slug)
                 const displayName = ex ? ex.name : slug.replace(/_/g, ' ')
                 return (
                   <span
                     key={slug}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-status-danger-bg border border-status-danger-border text-status-danger-fg"
                   >
                     <span>{displayName}</span>
                     <button
                       type="button"
                       onClick={() => removeExcludedExercise(slug)}
-                      className="hover:text-rose-900 dark:hover:text-rose-100 cursor-pointer font-bold"
+                      className="hover:opacity-75 cursor-pointer font-bold"
                       aria-label={`Remove ${displayName} from exclusions`}
                     >
                       ✕
@@ -1113,7 +1145,7 @@ export function TrainingProfileView() {
               })}
             </div>
           ) : (
-            <p className="text-xs text-slate-400 italic">No specific exercises excluded.</p>
+            <p className="text-xs text-inkSecondary italic">No specific exercises excluded.</p>
           )}
 
           {/* Search to exclude exercise */}
@@ -1124,27 +1156,28 @@ export function TrainingProfileView() {
                 placeholder="Search exercise to exclude..."
                 value={exerciseSearch}
                 onChange={(e) => setExerciseSearch(e.target.value)}
-                className="w-full px-3 py-1.5 pl-8 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                aria-label="Search exercise to exclude"
+                className="w-full px-3 py-2 pl-9 rounded-xl text-xs bg-surface border border-edge text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
-              <svg className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 absolute left-3 top-2.5 text-inkMuted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
 
             {exerciseSearch.trim() && (
-              <div className="max-h-36 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800 shadow-sm text-xs">
+              <div className="max-h-36 overflow-y-auto border border-edge rounded-xl bg-surface divide-y divide-edge shadow-sm text-xs">
                 {availableExercisesForExclusion.length === 0 ? (
-                  <div className="p-2.5 text-slate-400 text-center">No matching exercises found</div>
+                  <div className="p-3 text-inkSecondary text-center">No matching exercises found</div>
                 ) : (
                   availableExercisesForExclusion.slice(0, 10).map((ex) => (
                     <button
                       key={ex.slug}
                       type="button"
                       onClick={() => addExcludedExercise(ex.slug)}
-                      className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center justify-between text-slate-800 dark:text-slate-200 transition cursor-pointer"
+                      className="w-full text-left px-3.5 py-2 hover:bg-surfaceMuted flex items-center justify-between text-ink transition cursor-pointer"
                     >
-                      <span className="font-medium">{ex.name}</span>
-                      <span className="text-[10px] text-slate-400 capitalize">{ex.primary_muscle}</span>
+                      <span className="font-medium text-ink">{ex.name}</span>
+                      <span className="text-[10px] text-inkSecondary capitalize">{ex.primary_muscle}</span>
                     </button>
                   ))
                 )}
@@ -1155,12 +1188,12 @@ export function TrainingProfileView() {
       </div>
 
       {/* 6. Training Considerations & Limitations */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-3">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs space-y-3">
         <div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          <h3 className="text-sm font-bold text-ink">
             8. Training Considerations & Physical Limitations
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-inkSecondary mt-0.5">
             Add any relevant orthopedic history, joint pain, mobility constraints, or notes for your training routines.
           </p>
         </div>
@@ -1170,7 +1203,8 @@ export function TrainingProfileView() {
           value={considerations}
           onChange={(e) => setConsiderations(e.target.value)}
           placeholder="E.g. Mild right rotator cuff discomfort on overhead pressing; prefer neutral grip dumbbell bench; avoiding heavy axial spinal loading..."
-          className="w-full p-3 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 leading-relaxed"
+          aria-label="Training considerations and physical limitations"
+          className="w-full p-3 rounded-xl text-xs bg-surface border border-edge text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand leading-relaxed"
         />
       </div>
 
@@ -1180,14 +1214,14 @@ export function TrainingProfileView() {
           type="button"
           onClick={handleDiscardChanges}
           disabled={saving || !hasUnsavedChanges}
-          className="px-5 py-2.5 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
+          className="px-5 py-2.5 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted transition disabled:opacity-50 cursor-pointer"
         >
           Reset Changes
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          className="px-6 py-2.5 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           {saving ? (
             <>
@@ -1196,7 +1230,7 @@ export function TrainingProfileView() {
             </>
           ) : (
             <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <span>Save Training Profile</span>
@@ -1207,46 +1241,53 @@ export function TrainingProfileView() {
 
       {/* MODAL: Save as New Profile */}
       {showSaveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-profile-preset-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-surface rounded-2xl border border-edge p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
+            <h3 id="save-profile-preset-title" className="text-base font-bold text-ink">
               Save as New Profile Configuration
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-inkSecondary">
               Save the current settings (duration, split, equipment, exclusions) as a reusable named preset.
             </p>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                <label htmlFor="new-preset-name" className="text-xs font-semibold text-ink uppercase tracking-wider block mb-1">
                   Configuration Name *
                 </label>
                 <input
+                  id="new-preset-name"
                   type="text"
                   placeholder="e.g. Travel Bodyweight Routine"
                   value={newConfigName}
                   onChange={(e) => setNewConfigName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-surface border border-edge text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                <label htmlFor="new-preset-desc" className="text-xs font-semibold text-ink uppercase tracking-wider block mb-1">
                   Description (optional)
                 </label>
                 <input
+                  id="new-preset-desc"
                   type="text"
                   placeholder="e.g. 30-min quick hotel room sessions"
                   value={newConfigDesc}
                   onChange={(e) => setNewConfigDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 rounded-xl text-xs bg-surface border border-edge text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowSaveModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1254,7 +1295,7 @@ export function TrainingProfileView() {
                 type="button"
                 onClick={handleCreateSavedConfig}
                 disabled={savedActionLoading || !newConfigName.trim()}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white transition disabled:opacity-50 cursor-pointer shadow-xs"
               >
                 {savedActionLoading ? 'Saving...' : 'Save Profile Preset'}
               </button>
@@ -1265,28 +1306,34 @@ export function TrainingProfileView() {
 
       {/* MODAL: Rename Saved Configuration */}
       {showRenameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rename-profile-preset-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-surface rounded-2xl border border-edge p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
+            <h3 id="rename-profile-preset-title" className="text-base font-bold text-ink">
               Rename Profile Configuration
             </h3>
             <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block mb-1">
+              <label htmlFor="rename-preset-name" className="text-xs font-semibold text-ink uppercase tracking-wider block mb-1">
                 New Name *
               </label>
               <input
+                id="rename-preset-name"
                 type="text"
                 value={renameConfigName}
                 onChange={(e) => setRenameConfigName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full px-3 py-2 rounded-xl text-xs bg-surface border border-edge text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
                 autoFocus
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowRenameModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1294,7 +1341,7 @@ export function TrainingProfileView() {
                 type="button"
                 onClick={handleRenameSavedConfig}
                 disabled={savedActionLoading || !renameConfigName.trim()}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white transition disabled:opacity-50 cursor-pointer shadow-xs"
               >
                 {savedActionLoading ? 'Saving...' : 'Rename'}
               </button>
@@ -1305,19 +1352,24 @@ export function TrainingProfileView() {
 
       {/* MODAL: Delete Saved Configuration Confirmation */}
       {showDeleteModal && selectedConfig && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-md w-full shadow-xl space-y-4">
-            <h3 className="text-base font-bold text-rose-600 dark:text-rose-400">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-profile-preset-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+        >
+          <div className="bg-surface rounded-2xl border border-edge p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
+            <h3 id="delete-profile-preset-title" className="text-base font-bold text-status-danger-fg">
               Delete Configuration
             </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-300">
-              Are you sure you want to delete <span className="font-semibold">"{selectedConfig.name}"</span>? This configuration preset will be permanently removed.
+            <p className="text-xs text-inkSecondary leading-relaxed">
+              Are you sure you want to delete <span className="font-bold text-ink">"{selectedConfig.name}"</span>? This configuration preset will be permanently removed.
             </p>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1325,7 +1377,7 @@ export function TrainingProfileView() {
                 type="button"
                 onClick={handleDeleteSavedConfig}
                 disabled={savedActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-status-danger-bg hover:opacity-90 border border-status-danger-border text-status-danger-fg transition disabled:opacity-50 cursor-pointer"
               >
                 {savedActionLoading ? 'Deleting...' : 'Confirm Delete'}
               </button>

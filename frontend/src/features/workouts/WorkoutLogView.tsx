@@ -29,6 +29,16 @@ export function WorkoutLogView({
   // Starting a new session loading
   const [startingSession, setStartingSession] = useState(false)
 
+  // Escape key handling for detail modal
+  useEffect(() => {
+    if (!selectedLogForDetail) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedLogForDetail(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedLogForDetail])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -87,9 +97,9 @@ export function WorkoutLogView({
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center space-y-4">
-        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-slate-500 dark:text-slate-400">Loading workout logs...</p>
+      <div className="bg-surface border border-edge rounded-2xl p-12 text-center space-y-4">
+        <div className="w-8 h-8 border-3 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-inkSecondary">Loading workout logs...</p>
       </div>
     )
   }
@@ -114,18 +124,18 @@ export function WorkoutLogView({
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {/* Top Header */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xs">
+      <div className="bg-surface border border-edge rounded-2xl p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h2 className="text-xl font-bold tracking-tight text-ink flex items-center gap-2">
+              <svg className="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
               Workout Log & Session History
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+            <p className="text-xs text-inkSecondary mt-1 max-w-xl leading-relaxed">
               Review completed training sessions, track execution consistency, or launch a quick session.
             </p>
           </div>
@@ -135,7 +145,7 @@ export function WorkoutLogView({
               <button
                 type="button"
                 onClick={onNavigateToPlanner}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-edge text-inkSecondary hover:text-ink bg-surfaceMuted hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Go to Weekly Planner
               </button>
@@ -145,9 +155,9 @@ export function WorkoutLogView({
               type="button"
               onClick={handleStartCustomWorkout}
               disabled={startingSession}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand hover:bg-brandHover text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span>{startingSession ? 'Starting...' : 'Start Custom Workout'}</span>
@@ -156,24 +166,24 @@ export function WorkoutLogView({
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300">
+          <div role="alert" className="mt-4 p-3 bg-status-danger-bg border border-status-danger-border rounded-xl text-xs text-status-danger-fg">
             {error}
           </div>
         )}
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex items-center gap-1 text-xs">
+      <div className="flex items-center justify-between border-b border-edge pb-3">
+        <div className="flex items-center gap-1.5 text-xs">
           {(['all', 'completed', 'cancelled'] as const).map((filter) => (
             <button
               key={filter}
               type="button"
               onClick={() => setStatusFilter(filter)}
-              className={`px-3 py-1.5 rounded-lg capitalize font-medium transition ${
+              className={`px-3.5 py-1.5 rounded-xl capitalize font-semibold transition cursor-pointer border ${
                 statusFilter === filter
-                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-brand text-white border-brand shadow-xs'
+                  : 'bg-surface border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'
               }`}
             >
               {filter}
@@ -181,28 +191,28 @@ export function WorkoutLogView({
           ))}
         </div>
 
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-inkSecondary">
           {filteredHistory.length} {filteredHistory.length === 1 ? 'workout' : 'workouts'} recorded
         </span>
       </div>
 
       {/* History Cards */}
       {filteredHistory.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-surface border border-edge rounded-2xl p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-surfaceMuted border border-edge text-inkSecondary flex items-center justify-center mx-auto">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
             </svg>
           </div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+          <h3 className="font-bold text-ink text-sm">
             No Workouts in Log
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+          <p className="text-xs text-inkSecondary max-w-sm mx-auto leading-relaxed">
             Start a workout from your Weekly Planner or click &quot;Start Custom Workout&quot; to log your sets in real time.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {filteredHistory.map((item) => {
             const isCompleted = item.status === 'completed'
             const durationMins = Math.round(item.duration_seconds / 60)
@@ -211,30 +221,30 @@ export function WorkoutLogView({
             return (
               <div
                 key={item.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition space-y-3"
+                className="bg-surface border border-edge rounded-2xl p-5 shadow-xs hover:border-brand/40 transition space-y-3 text-left"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-[10px] font-mono text-slate-400 block">
+                    <span className="text-[10px] font-mono text-inkSecondary block">
                       {dateStr}
                     </span>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 mt-0.5">
+                    <h3 className="font-bold text-sm text-ink mt-0.5">
                       {item.session_name}
                     </h3>
                   </div>
 
                   <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize border ${
                       isCompleted
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
-                        : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400'
+                        ? 'bg-status-success-bg text-status-success-fg border-status-success-border'
+                        : 'bg-status-danger-bg text-status-danger-fg border-status-danger-border'
                     }`}
                   >
                     {item.status}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
+                <div className="flex items-center gap-3 text-xs text-inkSecondary pt-1">
                   <span>⏱ {durationMins} min</span>
                   <span>•</span>
                   <span>{item.total_exercises} Exercises</span>
@@ -242,11 +252,11 @@ export function WorkoutLogView({
                   <span>{item.completed_sets} Sets Finished</span>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end">
+                <div className="pt-2.5 border-t border-edge flex items-center justify-end">
                   <button
                     type="button"
                     onClick={() => handleViewLogDetail(item.id)}
-                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-brand hover:underline cursor-pointer"
                   >
                     View Details →
                   </button>
@@ -262,22 +272,23 @@ export function WorkoutLogView({
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="workout-detail-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="bg-surface border border-edge rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto text-left">
+            <div className="flex items-start justify-between border-b border-edge pb-3">
               <div>
-                <span className="text-[10px] font-mono text-slate-400">
+                <span className="text-[10px] font-mono text-inkSecondary">
                   {selectedLogForDetail.started_at.slice(0, 10)}
                 </span>
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                <h3 id="workout-detail-title" className="text-base font-bold text-ink">
                   {selectedLogForDetail.session_name}
                 </h3>
                 <span
-                  className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
+                  className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize border ${
                     selectedLogForDetail.status === 'completed'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-rose-50 text-rose-700'
+                      ? 'bg-status-success-bg text-status-success-fg border-status-success-border'
+                      : 'bg-status-danger-bg text-status-danger-fg border-status-danger-border'
                   }`}
                 >
                   {selectedLogForDetail.status}
@@ -286,7 +297,8 @@ export function WorkoutLogView({
               <button
                 type="button"
                 onClick={() => setSelectedLogForDetail(null)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600 text-sm"
+                aria-label="Close dialog"
+                className="p-1 rounded-lg text-inkSecondary hover:text-ink hover:bg-surfaceMuted transition cursor-pointer"
               >
                 ✕
               </button>
@@ -297,13 +309,13 @@ export function WorkoutLogView({
               {selectedLogForDetail.exercises.map((ex) => (
                 <div
                   key={ex.id || ex.order_in_session}
-                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 space-y-2"
+                  className="p-3.5 rounded-xl border border-edge bg-surfaceMuted space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                    <span className="font-bold text-xs text-ink">
                       {ex.exercise_name}
                     </span>
-                    <span className="text-[10px] text-slate-400 capitalize">
+                    <span className="text-[10px] text-inkSecondary capitalize">
                       {ex.primary_muscle}
                     </span>
                   </div>
@@ -312,10 +324,10 @@ export function WorkoutLogView({
                     {ex.sets.map((set) => (
                       <div
                         key={set.set_number}
-                        className={`p-2 rounded-lg text-center ${
+                        className={`p-2 rounded-lg text-center border ${
                           set.is_completed
-                            ? 'bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200'
-                            : 'bg-slate-200/60 dark:bg-slate-700 text-slate-500'
+                            ? 'bg-status-success-bg text-status-success-fg border-status-success-border'
+                            : 'bg-surface text-inkSecondary border-edge'
                         }`}
                       >
                         <span className="text-[10px] block opacity-70">
@@ -338,7 +350,7 @@ export function WorkoutLogView({
               <button
                 type="button"
                 onClick={() => setSelectedLogForDetail(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-surfaceMuted border border-edge text-ink hover:bg-surfaceRaised transition cursor-pointer"
               >
                 Close
               </button>
