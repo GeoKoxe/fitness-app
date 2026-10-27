@@ -1061,6 +1061,31 @@ class BackupService:
                     raw_psid = slog.get("planned_session_id")
                     remapped_psid = planned_session_id_map.get(raw_psid) if raw_psid else None
 
+                    # Parse and validate session version (Batch 4: preserve version on restore)
+                    raw_version = slog.get("version")
+                    if raw_version is None:
+                        session_version = 1
+                    else:
+                        if isinstance(raw_version, bool):
+                            raise ValueError(
+                                f"Invalid version '{raw_version}' for workout session '{s_name}': expected a positive integer."
+                            )
+                        if isinstance(raw_version, int):
+                            session_version = raw_version
+                        elif isinstance(raw_version, float) and raw_version.is_integer():
+                            session_version = int(raw_version)
+                        elif isinstance(raw_version, str) and raw_version.strip().isdigit():
+                            session_version = int(raw_version.strip())
+                        else:
+                            raise ValueError(
+                                f"Invalid version '{raw_version}' for workout session '{s_name}': expected a positive integer."
+                            )
+
+                        if session_version < 1:
+                            raise ValueError(
+                                f"Invalid version '{raw_version}' for workout session '{s_name}': expected a positive integer >= 1."
+                            )
+
                     new_slog = WorkoutSessionLog(
                         user_profile_id=profile.id,
                         workout_plan_id=remapped_wpid,
@@ -1072,6 +1097,7 @@ class BackupService:
                         completed_at=parse_dt(slog.get("completed_at")),
                         duration_seconds=int(slog.get("duration_seconds", 0)),
                         notes=slog.get("notes"),
+                        version=session_version,
                     )
                     db.add(new_slog)
                     db.flush()
