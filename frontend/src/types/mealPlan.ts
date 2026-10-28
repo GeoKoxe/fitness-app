@@ -47,10 +47,25 @@ export interface UnmetConstraintDetail {
   target_name: string
   target_value: number
   actual_value: number
-  tolerance_pct: number
-  upper_limit: number
-  status: 'acceptable' | 'exceeded' | 'under' | 'conflict' | 'relaxed'
+  discrepancy?: number | null | undefined
+  tolerance_pct?: number | undefined
+  upper_limit?: number | undefined
+  status?: 'acceptable' | 'exceeded' | 'under' | 'conflict' | 'relaxed' | string
+  is_permitted_exception?: boolean | undefined
+  day_number?: number | null | undefined
+  nutrient?: string | null | undefined
+  explanation?: string | null | undefined
   suggestion?: string | null | undefined
+}
+
+export interface StrategyMetricsResponse {
+  unique_ingredients_count: number
+  unique_recipes_count: number
+  meal_repetition_rate: number
+  ingredient_reuse_score: number
+  total_cooking_time_minutes: number
+  shopping_list_item_count: number
+  target_compliance_rate: number
 }
 
 export interface WeeklyNutritionOverview {
@@ -66,6 +81,14 @@ export interface WeeklyNutritionOverview {
   target_fat?: number | null | undefined
   target_fiber?: number | null | undefined
 
+  plan_status?: 'success' | 'best_effort' | string | undefined
+  is_successful?: boolean | undefined
+  constraint_count?: number | undefined
+  permitted_exception_count?: number | undefined
+  target_compliance_rate?: number | undefined
+  strategy_metrics?: StrategyMetricsResponse | null | undefined
+
+  /** @deprecated Tolerance setting has been removed from planning */
   tolerance_pct?: number | undefined
   adherence_calories_pct?: number | null | undefined
   adherence_protein_pct?: number | null | undefined
@@ -108,6 +131,7 @@ export interface MealPlanSummary {
 export interface MealPlanGenerateRequest {
   name?: string | undefined
   start_date?: string | null | undefined
+  generation_strategy?: 'simple' | 'varied' | string | undefined
   enabled_categories?: string[] | undefined
   disliked_foods?: string[] | undefined
   max_cooking_time_minutes?: number | null | undefined

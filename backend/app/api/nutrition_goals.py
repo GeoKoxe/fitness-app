@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.nutrition_goal import (
+    GenerateGoalsResponse,
     GoalEstimateResponse,
     NutritionGoalResponse,
     NutritionGoalUpdate,
@@ -45,6 +46,15 @@ def estimate_nutrition_goals(db: Session = Depends(get_db)) -> GoalEstimateRespo
 
 
 @router.get(
+    "/goals/generate",
+    response_model=GenerateGoalsResponse,
+    summary="Generate 3 personalized non-clinical daily nutrition goal profiles (Weight Loss, Sustainability, Bulking)",
+)
+def generate_nutrition_goals(db: Session = Depends(get_db)) -> GenerateGoalsResponse:
+    return nutrition_goal_service.generate_goal_profiles(db)
+
+
+@router.get(
     "/reports",
     response_model=NutritionReportResponse,
     summary="Get historical daily and weekly nutrition summaries with weight trend",
@@ -63,4 +73,3 @@ def get_nutrition_report(
     return nutrition_report_service.get_report(
         db, start_date=start_date, end_date=end_date
     )
-

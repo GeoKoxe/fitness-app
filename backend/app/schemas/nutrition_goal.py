@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -35,6 +35,36 @@ class NutritionGoalResponse(NutritionGoalBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GeneratedProfile(BaseModel):
+    key: str
+    name: str
+    calories_kcal: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    fiber_g: float
+    protein_pct: float
+    carbs_pct: float
+    fat_pct: float
+    purpose: str
+    explanation: str
+
+
+class GenerateGoalsResponse(BaseModel):
+    bmr_kcal: float
+    tdee_kcal: float
+    weight_kg: float
+    height_cm: float
+    age: int
+    sex: str
+    activity_level: str
+    training_days_per_week: int
+    training_goals: Optional[str] = None
+    profiles: List[GeneratedProfile]
+    formula_explanation: str
+    disclaimer: str
+
+
 class GoalEstimateResponse(BaseModel):
     calories_kcal: float
     protein_g: float
@@ -44,4 +74,4 @@ class GoalEstimateResponse(BaseModel):
     bmr_kcal: float
     tdee_kcal: float
     formula_explanation: str
-
+    profiles: Optional[List[GeneratedProfile]] = None

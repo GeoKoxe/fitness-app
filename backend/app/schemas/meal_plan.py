@@ -78,10 +78,25 @@ class UnmetConstraintDetail(BaseModel):
     target_name: str
     target_value: float
     actual_value: float
-    tolerance_pct: float
-    upper_limit: float
-    status: str  # "acceptable", "exceeded", "under"
+    tolerance_pct: Optional[float] = None
+    upper_limit: Optional[float] = None
+    status: str = "unmet"  # "acceptable", "exceeded", "under", "conflict", "unmet", "permitted_exception"
     suggestion: Optional[str] = None
+    day_number: Optional[int] = None
+    nutrient: Optional[str] = None
+    discrepancy: Optional[float] = None
+    is_permitted_exception: bool = False
+    explanation: Optional[str] = None
+
+
+class StrategyMetricsResponse(BaseModel):
+    unique_ingredients_count: int = 0
+    unique_recipes_count: int = 0
+    meal_repetition_rate: float = 0.0
+    ingredient_reuse_score: float = 0.0
+    total_cooking_time_minutes: int = 0
+    shopping_list_item_count: int = 0
+    target_compliance_rate: float = 1.0
 
 
 class WeeklyNutritionOverview(BaseModel):
@@ -97,7 +112,14 @@ class WeeklyNutritionOverview(BaseModel):
     target_fat: Optional[float] = None
     target_fiber: Optional[float] = None
 
-    tolerance_pct: float = 10.0
+    plan_status: str = "success"  # "success" (0 or 1 constraint) or "best_effort" (>1 constraints)
+    is_successful: bool = True
+    constraint_count: int = 0
+    permitted_exception_count: int = 0
+
+    strategy_metrics: Optional[StrategyMetricsResponse] = None
+
+    tolerance_pct: Optional[float] = None
     adherence_calories_pct: Optional[float] = None
     adherence_protein_pct: Optional[float] = None
     adherence_carbs_pct: Optional[float] = None
@@ -112,7 +134,7 @@ class MealPlanBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     start_date: date
     end_date: date
-    target_tolerance_pct: float = 10.0
+    target_tolerance_pct: Optional[float] = None
     notes: Optional[str] = None
 
 
@@ -179,9 +201,7 @@ class MealPlanGenerateRequest(BaseModel):
     daily_budget: Optional[float] = None
     target_tolerance_pct: Optional[float] = Field(
         default=None,
-        ge=10.0,
-        le=15.0,
-        description="Acceptable daily target tolerance percentage (10% to 15%)",
+        description="Deprecated target tolerance percentage",
     )
 
 
@@ -246,7 +266,7 @@ class PlannerPreferencesBase(BaseModel):
     simplicity_preference: str = "simple"
     daily_budget: Optional[float] = None
     reuse_ingredients: bool = True
-    target_tolerance_pct: float = Field(default=10.0, ge=10.0, le=15.0)
+    target_tolerance_pct: Optional[float] = 10.0
 
 
 class PlannerPreferencesUpdate(BaseModel):
@@ -256,7 +276,7 @@ class PlannerPreferencesUpdate(BaseModel):
     simplicity_preference: Optional[str] = None
     daily_budget: Optional[float] = None
     reuse_ingredients: Optional[bool] = None
-    target_tolerance_pct: Optional[float] = Field(default=None, ge=10.0, le=15.0)
+    target_tolerance_pct: Optional[float] = None
 
 
 class PlannerPreferencesResponse(PlannerPreferencesBase):

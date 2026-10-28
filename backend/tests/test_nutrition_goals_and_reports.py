@@ -273,3 +273,92 @@ async def test_backup_export_and_import_with_goals(client: AsyncClient):
     # Existing goals remain intact
     restored_res2 = await client.get("/api/nutrition/goals")
     assert restored_res2.json()["calories_kcal"] == 2250.0
+
+
+@pytest.mark.asyncio
+async def test_generate_goal_profiles_success(client: AsyncClient):
+    # Setup profile with valid metrics
+    await client.post(
+        "/api/profile",
+        json={
+            "name": "Alex",
+            "date_of_birth": "1994-05-15",
+            "sex": "male",
+            "height_cm": 180.0,
+            "activity_level": "moderately_active",
+        },
+    )
+    # Record weight measurement
+    await client.post(
+        "/api/measurements",
+        json={"weight_kg": 80.0, "measured_at": "2026-10-28T08:00:00Z"},
+    )
+    # Set manual goals first to test preservation
+    await client.put(
+        "/api/nutrition/goals",
+        json={"calories_kcal": 2000.0, "protein_g": 150.0, "carbs_g": 200.0, "fat_g": 65.0},
+    )
+
+    # Call generate goals
+    res = await client.get("/api/nutrition/goals/generate")
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["weight_kg"] == 80.0
+    assert data["height_cm"] == 180.0
+    assert data["sex"] == "male"
+    assert len(data["profiles"]) == 3
+
+    keys = [p["key"] for p in data["profiles"]]
+    assert "weight_loss" in keys
+    assert "sustainability" in keys
+    assert "bulking" in keys
+
+    # Verify each profile satisfies exact Atwater consistency and logical relationships
+    profiles_by_key = {p["key"]: p for p in data["profiles"]}
+    p_loss = profiles_by_key["weight_loss"]
+    p_sustain = profiles_by_key["sustainability"]
+    p_bulk = profiles_by_key["bulking"]
+
+    # Weight loss < Sustainability < Bulking calories
+    assert p_loss["calories_kcal"] < p_sustain["calories_kcal"] < p_bulk["calories_kcal"]
+
+    for prof in data["profiles"]:
+        # Strict Atwater macro reconciliation
+        macro_sum = 4.0 * prof["protein_g"] + 4.0 * prof["carbs_g"] + 9.0 * prof["fat_g"]
+        assert prof["calories_kcal"] == macro_sum, f"Atwater mismatch for {prof['key']}"
+        assert prof["protein_g"] > 0
+        assert prof["carbs_g"] > 0
+        assert prof["fat_g"] > 0
+        assert prof["fiber_g"] > 0
+
+    # Ensure manual goals are PRESERVED after viewing generated profiles
+    current_goals = (await client.get("/api/nutrition/goals")).json()
+    assert current_goals["calories_kcal"] == 2000.0
+    assert current_goals["protein_g"] == 150.0
+
+    # Explicit application of Sustainability profile
+    apply_res = await client.put(
+        "/api/nutrition/goals",
+        json={
+            "calories_kcal": p_sustain["calories_kcal"],
+            "protein_g": p_sustain["protein_g"],
+            "carbs_g": p_sustain["carbs_g"],
+            "fat_g": p_sustain["fat_g"],
+            "fiber_g": p_sustain["fiber_g"],
+        },
+    )
+    assert apply_res.status_code == 200
+    updated_goals = (await client.get("/api/nutrition/goals")).json()
+    assert updated_goals["calories_kcal"] == p_sustain["calories_kcal"]
+    assert updated_goals["protein_g"] == p_sustain["protein_g"]
+
+
+@pytest.mark.asyncio
+async def test_generate_goal_profiles_missing_inputs(client: AsyncClient):
+    # Empty profile (no weight, no height, no sex, no dob)
+    await client.post("/api/profile", json={"name": "Incomplete"})
+
+    res = await client.get("/api/nutrition/goals/generate")
+    assert res.status_code == 400
+    assert "required" in res.json()["detail"].lower()

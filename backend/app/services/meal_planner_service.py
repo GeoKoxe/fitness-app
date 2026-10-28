@@ -1,13 +1,15 @@
 import datetime
-import itertools
-import math
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.domain.nutrition import round_portion_quantity, scale_food_nutrients, validate_portion_quantity
+from app.domain.nutrition import (
+    round_portion_quantity,
+    scale_food_nutrients,
+    validate_portion_quantity,
+)
 from app.models.food import Food
 from app.models.meal_log import MealLog
 from app.models.meal_plan import (
@@ -19,7 +21,6 @@ from app.models.meal_plan import (
     ShoppingListItem,
 )
 from app.models.nutrition_goal import NutritionGoal
-from app.models.profile import UserProfile
 from app.models.recipe import Recipe, RecipeIngredient
 from app.repositories.food_repository import food_repository
 from app.repositories.recipe_repository import recipe_repository
@@ -35,18 +36,19 @@ from app.schemas.meal_plan import (
     MealPlanResponse,
     PlannedMealItemResponse,
     PlannedMealResponse,
+    PlannerPreferencesResponse,
+    PlannerPreferencesUpdate,
+    StrategyMetricsResponse,
     UnmetConstraintDetail,
     WeeklyNutritionOverview,
 )
 from app.services.meal_log_service import meal_log_service
 from app.services.recipe_service import recipe_service
+from app.services.candidate_meal_generator import CandidateMealGenerator
 
 
 def matches_disliked(text: str, disliked_terms: List[str]) -> bool:
-    """Check if text contains any disliked term using strict word boundaries.
-
-    Guarantees that excluding 'olives' will NOT exclude 'olive oil'.
-    """
+    """Matches text against disliked terms using whole-word boundaries."""
     if not text or not disliked_terms:
         return False
     text_lower = text.lower()
@@ -54,7 +56,6 @@ def matches_disliked(text: str, disliked_terms: List[str]) -> bool:
         clean = term.strip().lower()
         if not clean:
             continue
-        # Use \b word boundaries
         pattern = r"\b" + re.escape(clean) + r"\b"
         if re.search(pattern, text_lower):
             return True
@@ -77,7 +78,7 @@ def category_matches(recipe_cat: Optional[str], target_cat: Optional[str]) -> bo
 
 
 def is_cross_category_suitable(recipe: Recipe, target_category: str) -> bool:
-    """Check if a recipe from another category is genuinely appropriate for target_category under Level 2 relaxation."""
+    """Check if a recipe from another category is genuinely appropriate for target_category."""
     if not recipe or not recipe.meal_category:
         return True
     rcat = recipe.meal_category.lower().strip()
@@ -85,52 +86,35 @@ def is_cross_category_suitable(recipe: Recipe, target_category: str) -> bool:
     if category_matches(rcat, tcat):
         return True
 
-    # Lunch and Dinner are interchangeable main hot/savory meals
     if tcat in ("lunch", "dinner") and rcat in ("lunch", "dinner"):
         return True
 
-    # Wholesome breakfast-suitable items: yogurt bowls, toasts, oat bowls, porridges, chia snacks
     if tcat == "breakfast" and rcat in ("snack", "snacks"):
-        rname = recipe.name.lower()
-        if any(term in rname for term in ("toast", "yogurt", "oat", "porridge", "bowl", "chia", "apple & peanut butter")):
-            return True
-        return False
+        name_lower = recipe.name.lower()
+        wholesome_tokens = ["yogurt", "oat", "parfait", "smoothie", "toast", "egg", "fruit", "muffin", "chia", "nut", "bowl"]
+        return any(tok in name_lower for tok in wholesome_tokens)
 
-    # Light breakfast items suitable for snacks
     if tcat in ("snack", "snacks") and rcat == "breakfast":
-        rname = recipe.name.lower()
-        if any(term in rname for term in ("toast", "bowl", "porridge", "oats", "chia")):
-            return True
-        return False
+        return (recipe.prep_time_minutes or 0) + (recipe.cook_time_minutes or 0) <= 25
 
     return False
 
 
 def check_recipe_repetition_and_spacing(
     recipe_id: int,
-    target_day: int,
+    day_number: int,
     assignments: Dict[int, List[int]],
-) -> Tuple[bool, str]:
-    """Validate Phase 6 mandatory repetition and spacing rules:
-    1. A particular recipe ID may appear at most twice in the same weekly plan.
-    2. If a recipe appears twice, its occurrences must be separated by at least 2 complete calendar days:
-       abs(target_day - other_day) >= 3.
-       - Monday (1) and Thursday (4): allowed (abs(1 - 4) = 3 >= 3).
-       - Monday (1) and Wednesday (3): not allowed (abs(1 - 3) = 2 < 3).
-       - Monday (1) and Tuesday (2): not allowed (abs(1 - 2) = 1 < 3).
-    3. Same recipe cannot appear on the same day in different categories:
-       abs(target_day - target_day) = 0 < 3 -> not allowed.
-    """
+    max_occurrences: int = 2,
+    min_spacing_days: int = 3,
+) -> Tuple[bool, Optional[str]]:
+    """Enforces repetition and calendar day spacing rules."""
     days = assignments.get(recipe_id, [])
-    if len(days) >= 2:
-        return False, f"Recipe already appears {len(days)} times in this weekly plan (maximum is 2)."
+    if len(days) >= max_occurrences:
+        return False, f"Recipe already used {len(days)} times (max {max_occurrences})"
     for d in days:
-        if abs(target_day - d) < 3:
-            return (
-                False,
-                f"Recipe already scheduled on Day {d}. Spacing rule requires at least 2 complete calendar days separation (|{target_day} - {d}| < 3).",
-            )
-    return True, ""
+        if abs(day_number - d) < min_spacing_days:
+            return False, f"Spacing violation: already scheduled on Day {d} (minimum spacing: {min_spacing_days} days)"
+    return True, None
 
 
 def check_target_compatibility(
@@ -138,14 +122,11 @@ def check_target_compatibility(
     target_protein: Optional[float],
     target_carbs: Optional[float],
     target_fat: Optional[float],
-    tolerance_pct: float = 10.0,
 ) -> Tuple[bool, Optional[str], float]:
     """Check whether calories and macronutrient targets are mathematically compatible.
 
-    Using the standard energy relationship:
-    calories ≈ 4 * protein_g + 4 * carbohydrates_g + 9 * fat_g
-
-    Returns (is_compatible, conflict_message, expected_calories).
+    Using the standard Atwater energy relationship:
+    calories = 4 * protein_g + 4 * carbohydrates_g + 9 * fat_g
     """
     if not target_protein or not target_carbs or not target_fat:
         return True, None, target_calories
@@ -157,19 +138,13 @@ def check_target_compatibility(
     diff_cal = abs(expected_cal - target_calories)
     diff_pct = (diff_cal / target_calories) * 100.0
 
-    tol_factor = tolerance_pct / 100.0
-    min_macro_cal = expected_cal * (1.0 - tol_factor)
-    max_macro_cal = expected_cal * (1.0 + tol_factor)
-    min_target_cal = target_calories * (1.0 - tol_factor)
-    max_target_cal = target_calories * (1.0 + tol_factor)
-
-    if min_macro_cal > max_target_cal or max_macro_cal < min_target_cal or diff_pct > (tolerance_pct * 1.5):
+    if diff_pct > 7.5 and diff_cal > 75.0:
         msg = (
             f"Configured macronutrient targets ({int(round(target_protein))}g protein, "
             f"{int(round(target_carbs))}g carbs, {int(round(target_fat))}g fat) provide approximately "
             f"{int(round(expected_cal))} kcal (via 4/4/9 kcal/g energy conversion). This deviates by "
-            f"{diff_pct:.1f}% from your daily calorie target of {int(round(target_calories))} kcal, "
-            f"exceeding your ±{tolerance_pct:.0f}% tolerance. All configured goals cannot be satisfied simultaneously."
+            f"{diff_pct:.1f}% from your daily calorie target of {int(round(target_calories))} kcal. "
+            "All configured goals cannot be satisfied simultaneously."
         )
         return False, msg, expected_cal
 
@@ -202,6 +177,30 @@ def extract_plan_targets(
             except (ValueError, TypeError):
                 pass
     return t_cal, t_p, t_c, t_f, t_fib
+
+
+def normalize_unit_and_value(quantity: float, unit: str) -> Tuple[str, float, str]:
+    """
+    Returns (family, normalized_value, canonical_unit).
+    family: 'mass' (normalized to g), 'volume' (normalized to ml), or discrete unit.
+    """
+    u = (unit or "").lower().strip()
+    if u in ("g", "gram", "grams"):
+        return ("mass", quantity, "g")
+    elif u in ("kg", "kilogram", "kilograms"):
+        return ("mass", quantity * 1000.0, "g")
+    elif u in ("mg", "milligram", "milligrams"):
+        return ("mass", quantity * 0.001, "g")
+    elif u in ("ml", "milliliter", "milliliters", "millilitre", "millilitres"):
+        return ("volume", quantity, "ml")
+    elif u in ("l", "liter", "liters", "litre", "litres"):
+        return ("volume", quantity * 1000.0, "ml")
+    elif u in ("cl", "centiliter"):
+        return ("volume", quantity * 10.0, "ml")
+    elif u in ("dl", "deciliter"):
+        return ("volume", quantity * 100.0, "ml")
+    else:
+        return (u or "item", quantity, u or "item")
 
 
 def precompute_recipe_nutrients(r: Recipe, servings: float = 1.0) -> Dict[str, Any]:
@@ -243,16 +242,19 @@ def precompute_recipe_nutrients(r: Recipe, servings: float = 1.0) -> Dict[str, A
             if i_fib is not None:
                 m_fib += i_fib
 
-            items_data.append({
-                "food_id": food.id,
-                "quantity": rounded_qty,
-                "unit": ing.unit,
-                "calories_kcal": round(i_cal, 1),
-                "protein_g": round(i_p, 1),
-                "carbs_g": round(i_c, 1),
-                "fat_g": round(i_f, 1),
-                "fiber_g": round(i_fib, 1) if i_fib is not None else None,
-            })
+            items_data.append(
+                {
+                    "food_id": food.id,
+                    "food_name": food.name,
+                    "quantity": rounded_qty,
+                    "unit": ing.unit,
+                    "calories_kcal": round(i_cal, 1),
+                    "protein_g": round(i_p, 1),
+                    "carbs_g": round(i_c, 1),
+                    "fat_g": round(i_f, 1),
+                    "fiber_g": round(i_fib, 1) if i_fib is not None else None,
+                }
+            )
 
     return {
         "calories_kcal": round(m_cal, 1),
@@ -318,7 +320,6 @@ class MealPlannerService:
         self, db: Session, user_profile_id: int, food_name: str, food_id: Optional[int] = None
     ) -> DislikedFoodResponse:
         name_clean = food_name.strip()
-        # Find existing
         existing = (
             db.query(DislikedFood)
             .filter(
@@ -342,7 +343,6 @@ class MealPlannerService:
                 created_at=existing.created_at,
             )
 
-        # Resolve food if not given
         if not food_id:
             matched_food = db.query(Food).filter(Food.name.ilike(name_clean)).first()
             if matched_food:
@@ -355,7 +355,6 @@ class MealPlannerService:
         )
         db.add(item)
 
-        # Also sync preference string
         pref = self.get_or_create_preferences(db, user_profile_id)
         current_list = [s.strip() for s in pref.disliked_foods.split(",") if s.strip()]
         if name_clean.lower() not in [s.lower() for s in current_list]:
@@ -380,69 +379,56 @@ class MealPlannerService:
     ) -> bool:
         item = (
             db.query(DislikedFood)
-            .filter(DislikedFood.id == disliked_id, DislikedFood.user_profile_id == user_profile_id)
+            .filter(
+                DislikedFood.id == disliked_id,
+                DislikedFood.user_profile_id == user_profile_id,
+            )
             .first()
         )
         if not item:
             return False
 
-        food_name = item.food_name
+        food_name_removed = item.food_name
         db.delete(item)
 
-        # Also remove from preference string
         pref = self.get_or_create_preferences(db, user_profile_id)
         current_list = [s.strip() for s in pref.disliked_foods.split(",") if s.strip()]
-        new_list = [s for s in current_list if s.lower() != food_name.lower()]
+        new_list = [s for s in current_list if s.lower() != food_name_removed.lower()]
         pref.disliked_foods = ",".join(new_list)
 
         db.commit()
         return True
 
     def get_all_disliked_filters(
-        self, db: Session, user_profile_id: int, extra_terms: Optional[List[str]] = None
+        self, db: Session, user_profile_id: int
     ) -> Tuple[Set[int], List[str]]:
-        """Collect all active disliked food IDs and string keywords for a user profile."""
         disliked_records = (
-            db.query(DislikedFood).filter(DislikedFood.user_profile_id == user_profile_id).all()
+            db.query(DislikedFood)
+            .filter(DislikedFood.user_profile_id == user_profile_id)
+            .all()
         )
-        ids: Set[int] = {r.food_id for r in disliked_records if r.food_id is not None}
-        terms: List[str] = [r.food_name.strip() for r in disliked_records if r.food_name.strip()]
+        disliked_ids: Set[int] = {r.food_id for r in disliked_records if r.food_id is not None}
+        disliked_terms: List[str] = [r.food_name.strip() for r in disliked_records if r.food_name.strip()]
 
-        pref = (
-            db.query(MealPlannerPreferences)
-            .filter(MealPlannerPreferences.user_profile_id == user_profile_id)
-            .first()
-        )
-        if pref and pref.disliked_foods:
-            for s in pref.disliked_foods.split(","):
-                clean = s.strip()
-                if clean and clean.lower() not in [t.lower() for t in terms]:
-                    terms.append(clean)
+        pref = self.get_or_create_preferences(db, user_profile_id)
+        if pref.disliked_foods:
+            for term in pref.disliked_foods.split(","):
+                t = term.strip()
+                if t and t.lower() not in [x.lower() for x in disliked_terms]:
+                    disliked_terms.append(t)
 
-        if extra_terms:
-            for s in extra_terms:
-                clean = s.strip()
-                if clean and clean.lower() not in [t.lower() for t in terms]:
-                    terms.append(clean)
-
-        return ids, terms
+        return disliked_ids, disliked_terms
 
     def is_recipe_disliked(
         self, recipe: Recipe, disliked_ids: Set[int], disliked_terms: List[str]
     ) -> bool:
-        """Check if recipe name, instructions, or any ingredient matches disliked filters."""
-        if matches_disliked(recipe.name, disliked_terms) or matches_disliked(
-            recipe.instructions or "", disliked_terms
-        ):
+        if matches_disliked(recipe.name, disliked_terms):
             return True
-
         for ing in recipe.ingredients:
-            if ing.food_id in disliked_ids:
+            if ing.food_id and ing.food_id in disliked_ids:
                 return True
-            food_name = ing.food.name if ing.food else ""
-            if matches_disliked(food_name, disliked_terms):
+            if ing.food and matches_disliked(ing.food.name, disliked_terms):
                 return True
-
         return False
 
     def get_active_plan(
@@ -450,8 +436,11 @@ class MealPlannerService:
     ) -> Optional[MealPlan]:
         return (
             db.query(MealPlan)
-            .filter(MealPlan.user_profile_id == user_profile_id, MealPlan.is_active.is_(True))
-            .order_by(MealPlan.id.desc())
+            .filter(
+                MealPlan.user_profile_id == user_profile_id,
+                MealPlan.is_active.is_(True),
+            )
+            .order_by(MealPlan.created_at.desc())
             .first()
         )
 
@@ -547,7 +536,6 @@ class MealPlannerService:
                 cat_opts[c] = opts_l1
                 max_repeats[c] = 2
             else:
-                # Level 2: Cross category suitable recipes
                 opts_l2 = get_category_options(c, level=2)
                 r_ids_l2 = list(set(opt[0] for opt in opts_l2 if opt[0] is not None))
                 if len(r_ids_l2) >= 4:
@@ -557,21 +545,19 @@ class MealPlannerService:
                     warnings.append(
                         f"Due to dietary exclusions, suitable cross-category recipes were included for {c} to complete your plan without violating variety rules."
                     )
-                elif len(r_ids_l2) >= 3:
-                    # Level 3: 3 recipes can fill 7 days with max_repeat=3 and spacing >= 3
+                elif len(r_ids_l1) >= 3:
                     cat_level[c] = 3
-                    cat_opts[c] = opts_l2
+                    cat_opts[c] = opts_l1
                     max_repeats[c] = 3
                     warnings.append(
-                        f"Strict dietary exclusions left only {len(r_ids_l2)} eligible recipes for {c}. Repetition limit was relaxed to 3 occurrences with spacing >= 3 days to guarantee a complete weekly plan."
+                        f"Strict dietary exclusions left only {len(r_ids_l1)} eligible recipes for {c}. Repetition limit was relaxed to 3 occurrences with spacing >= 3 days to guarantee a complete weekly plan."
                     )
                 elif len(r_ids_l2) > 0:
-                    # Level 4: Infeasible for all 7 days, fill as many as possible
                     cat_level[c] = 4
                     cat_opts[c] = opts_l2
                     max_repeats[c] = 2
                     warnings.append(
-                        f"Only {len(r_ids_l2)} eligible recipe(s) available for {c} under active dietary preferences. At least 3 recipes are required to fill 7 days under spacing rules. Incomplete slot(s) left for user selection."
+                        f"Only {len(r_ids_l2)} eligible recipe(s) available for {c} under active dietary exclusions. At least 4 recipes are required to fill 7 days under repetition and spacing rules. Incomplete slot(s) left for user selection."
                     )
                 else:
                     cat_level[c] = 4
@@ -589,21 +575,39 @@ class MealPlannerService:
         day_forbidden: Dict[int, Set[int]] = {d: set() for d in range(1, 8)}
         cat_schedules: Dict[str, List[Tuple[Optional[int], float]]] = {}
 
+        p_rat = (4.0 * target_protein) / target_calories if target_calories > 0 else 0.25
+        c_rat = (4.0 * target_carbs) / target_calories if target_calories > 0 else 0.45
+        f_rat = (9.0 * target_fat) / target_calories if target_calories > 0 else 0.30
+
         for c in sorted_cats:
             tc = cat_targets.get(c, 500.0)
+            tp = (tc * p_rat) / 4.0
+            tcb = (tc * c_rat) / 4.0
+            tf = (tc * f_rat) / 9.0
             cands = list(cat_opts[c])
 
-            # Deterministic candidate base cost
             def cand_base_cost(opt: Tuple[Optional[int], float]) -> Tuple[float, int]:
                 if opt[0] is None:
                     return (1e6, 0)
-                c_diff = abs(precomputed[opt]["calories_kcal"] - tc) / max(1.0, tc)
+                data = precomputed[opt]
+                cal_diff = abs(data["calories_kcal"] - tc) / max(1.0, tc)
+                p_diff = abs(data["protein_g"] - tp) / max(1.0, tp)
+                c_diff = abs(data["carbs_g"] - tcb) / max(1.0, tcb)
+                f_diff = abs(data["fat_g"] - tf) / max(1.0, tf)
+                macro_err = 0.40 * cal_diff + 0.30 * p_diff + 0.15 * c_diff + 0.15 * f_diff
+
                 overlap = 0
                 if reuse_ingredients and simplicity_preference == "simple":
-                    rec = precomputed[opt]["recipe"]
+                    rec = data["recipe"]
                     if rec:
                         overlap = sum(1 for ing in rec.ingredients if ing.food_id)
-                return (c_diff - 0.02 * overlap, opt[0])
+                overlap_bonus = (
+                    min(0.06, 0.015 * overlap)
+                    if simplicity_preference == "simple"
+                    else min(0.02, 0.003 * overlap)
+                )
+                reuse_bonus = 0.05 if (simplicity_preference == "simple" and len(weekly_assignments.get(opt[0], [])) > 0) else 0.0
+                return (macro_err - overlap_bonus - reuse_bonus, opt[0])
 
             m_rep = max_repeats[c]
             seq: List[Optional[Tuple[Optional[int], float]]] = [None] * 7
@@ -612,7 +616,6 @@ class MealPlannerService:
             def backtrack_category_days(day: int) -> bool:
                 if day > 7:
                     return True
-                # Dynamically order candidates: unused recipes first, then closest calories, then ID
                 ordered_cands = sorted(
                     cands,
                     key=lambda opt: (
@@ -629,7 +632,6 @@ class MealPlannerService:
                         continue
                     if rid in day_forbidden[day]:
                         continue
-                    # Spacing within current category
                     spacing_ok = True
                     for prev_d in range(1, day):
                         prev_opt = seq[prev_d - 1]
@@ -638,7 +640,6 @@ class MealPlannerService:
                             break
                     if not spacing_ok:
                         continue
-                    # Spacing against other categories
                     for prev_d in weekly_assignments.get(rid, []):
                         if abs(day - prev_d) < 3:
                             spacing_ok = False
@@ -656,7 +657,6 @@ class MealPlannerService:
 
             found = backtrack_category_days(1)
             if not found:
-                # If complete assignment is mathematically impossible (e.g. Level 4), fill as many slots as possible
                 for day in range(1, 8):
                     if seq[day - 1] is None:
                         for opt in cands:
@@ -694,7 +694,6 @@ class MealPlannerService:
                     weekly_assignments.setdefault(opt[0], []).append(day)
                     day_forbidden[day].add(opt[0])
 
-        # Solution dictionary mapping (day, cat) -> opt
         solution: Dict[Tuple[int, str], Tuple[Optional[int], float]] = {}
         for day in range(1, 8):
             for c in cats:
@@ -709,6 +708,12 @@ class MealPlannerService:
             fib = sum(precomputed[opt]["fiber_g"] for opt in combo)
             return cal, p, cb, f, fib
 
+        # Strict penalty for target constraint thresholds based on plan tolerance
+        c_thresh = max(35.0, tol_f * target_calories)
+        p_thresh = max(3.0, tol_f * target_protein)
+        cb_thresh = max(5.0, tol_f * target_carbs)
+        f_thresh = max(3.0, tol_f * target_fat)
+
         def score_combo(combo: List[Tuple[Optional[int], float]]) -> float:
             cal, p, cb, f, _ = calc_nutr(combo)
             err_cal = (cal - target_calories) / max(1.0, target_calories)
@@ -716,26 +721,27 @@ class MealPlannerService:
             err_c = (cb - target_carbs) / max(1.0, target_carbs)
             err_f = (f - target_fat) / max(1.0, target_fat)
 
-            pen_cal = 250.0 * max(0.0, abs(cal - target_calories) / max(1.0, target_calories) - tol_f) ** 2
-            pen_p = 150.0 * max(0.0, abs(p - target_protein) / max(1.0, target_protein) - tol_f) ** 2
-            pen_c = 80.0 * max(0.0, abs(cb - target_carbs) / max(1.0, target_carbs) - tol_f) ** 2
-            pen_f = 80.0 * max(0.0, abs(f - target_fat) / max(1.0, target_fat) - tol_f) ** 2
+            unmet = 0
+            if abs(cal - target_calories) > c_thresh:
+                unmet += 1
+            if abs(p - target_protein) > p_thresh:
+                unmet += 1
+            if abs(cb - target_carbs) > cb_thresh:
+                unmet += 1
+            if abs(f - target_fat) > f_thresh:
+                unmet += 1
 
-            loss = 0.40 * (err_cal ** 2) + 0.30 * (err_p ** 2) + 0.15 * (err_c ** 2) + 0.15 * (err_f ** 2)
-            return loss + pen_cal + pen_p + pen_c + pen_f
+            pen_step = 100.0 * unmet
+            loss = 0.35 * (err_cal ** 2) + 0.35 * (err_p ** 2) + 0.15 * (err_c ** 2) + 0.15 * (err_f ** 2)
+            return loss + pen_step
 
-        for _ in range(25):
+        for _ in range(50):
             improved = False
             for day in range(1, 8):
                 combo = [solution[(day, c)] for c in cats]
                 if any(opt[0] is None for opt in combo):
                     continue
                 cal, p, cb, f, _ = calc_nutr(combo)
-                if (abs(cal - target_calories) / target_calories <= tol_f and
-                    abs(p - target_protein) / target_protein <= tol_f and
-                    abs(cb - target_carbs) / target_carbs <= tol_f and
-                    abs(f - target_fat) / target_fat <= tol_f):
-                    continue
 
                 best_swap = None
                 best_swap_loss = score_combo(combo)
@@ -761,8 +767,12 @@ class MealPlannerService:
                         test_combo = list(combo)
                         test_combo[slot_idx] = cand_opt
                         new_loss = score_combo(test_combo)
-                        if new_loss < best_swap_loss:
-                            best_swap_loss = new_loss
+                        # Avoid gratuitously reusing a recipe already scheduled on another day
+                        # for negligible sub-calorie micro-differences (< 0.005 loss).
+                        # Legitimate target satisfaction improvements (loss drop ~100) are never blocked.
+                        reuse_cost = 0.005 if len(weekly_assignments.get(cand_rid, [])) > 0 else 0.0
+                        if new_loss + reuse_cost < best_swap_loss:
+                            best_swap_loss = new_loss + reuse_cost
                             best_swap = (slot_idx, c_name, cur_opt, cand_opt, test_combo)
 
                     if cur_rid is not None:
@@ -800,7 +810,7 @@ class MealPlannerService:
     def generate_plan(
         self, db: Session, user_profile_id: int, req: MealPlanGenerateRequest
     ) -> MealPlan:
-        """Deterministic 2-stage weekly nutrition optimization 7-day meal plan generator."""
+        """Deterministic weekly nutrition optimization 7-day meal plan generator."""
         # 1. Resolve Targets
         target = (
             db.query(NutritionGoal)
@@ -849,7 +859,7 @@ class MealPlannerService:
 
         disliked_ids, disliked_terms = self.get_all_disliked_filters(db, user_profile_id)
 
-        # Selected tolerance (10.0 to 15.0)
+        # Selected tolerance (saved for backward compatibility)
         pref = self.get_or_create_preferences(db, user_profile_id)
         if req.target_tolerance_pct and 10.0 <= req.target_tolerance_pct <= 15.0:
             selected_tol = float(req.target_tolerance_pct)
@@ -871,6 +881,43 @@ class MealPlannerService:
             if self.is_recipe_disliked(r, disliked_ids, disliked_terms):
                 continue
             valid_recipes.append(r)
+
+        # Expand candidate pool with target-tailored dynamic candidates from generic USDA foods
+        foods = db.query(Food).all()
+        # Use detached food instances so transient candidates do not cascade into db session
+        food_map = {
+            f.external_id: Food(
+                id=f.id,
+                external_id=f.external_id,
+                name=f.name,
+                category=f.category,
+                calories_kcal=f.calories_kcal,
+                protein_g=f.protein_g,
+                carbs_g=f.carbs_g,
+                fat_g=f.fat_g,
+                fiber_g=f.fiber_g,
+                nutritional_basis=f.nutritional_basis,
+                serving_quantity=f.serving_quantity,
+            )
+            for f in foods
+            if f.external_id
+        }
+        if food_map:
+            cand_generator = CandidateMealGenerator(food_map)
+            dynamic_cands = cand_generator.generate_candidates(
+                cats=cats,
+                cat_targets=cat_targets,
+                disliked_ids=disliked_ids,
+                disliked_terms=disliked_terms,
+                target_calories=t_cal,
+                target_protein=t_protein,
+                target_carbs=t_carbs,
+                target_fat=t_fat,
+                max_cooking_time_minutes=req.max_cooking_time_minutes,
+                simplicity_preference=req.simplicity_preference,
+                start_id=10000,
+            )
+            valid_recipes.extend(dynamic_cands)
 
         # 6. Deactivate existing active plans
         db.query(MealPlan).filter(
@@ -894,7 +941,7 @@ class MealPlannerService:
         db.add(plan)
         db.flush()
 
-        # 7. Run 2-Stage Weekly Nutrition Optimization
+        # 7. Run Redesigned 7-Day Nutrition Optimization
         optimized_days, shortage_warnings = self.optimize_weekly_plan(
             candidate_recipes=valid_recipes,
             cats=cats,
@@ -909,6 +956,8 @@ class MealPlannerService:
             reuse_ingredients=req.reuse_ingredients,
         )
 
+        persisted_recipe_map: Dict[int, int] = {}
+
         for day_num in range(1, 8):
             cur_date = start_date + datetime.timedelta(days=day_num - 1)
             for cat in cats:
@@ -917,7 +966,48 @@ class MealPlannerService:
 
                 if selected_recipe:
                     meal_name = selected_recipe.name
-                    recipe_id = selected_recipe.id
+                    if selected_recipe.id >= 10000:
+                        if selected_recipe.id in persisted_recipe_map:
+                            recipe_id = persisted_recipe_map[selected_recipe.id]
+                        else:
+                            existing = (
+                                db.query(Recipe)
+                                .filter(
+                                    Recipe.name == selected_recipe.name,
+                                    Recipe.meal_category == selected_recipe.meal_category,
+                                    Recipe.is_built_in.is_(False),
+                                )
+                                .first()
+                            )
+                            if existing:
+                                recipe_id = existing.id
+                            else:
+                                new_rec = Recipe(
+                                    user_profile_id=None,
+                                    name=selected_recipe.name,
+                                    meal_category=selected_recipe.meal_category,
+                                    servings=1,
+                                    prep_time_minutes=selected_recipe.prep_time_minutes,
+                                    cook_time_minutes=selected_recipe.cook_time_minutes,
+                                    instructions="Combine ingredients and prepare as indicated.",
+                                    tags=selected_recipe.tags or "generated,plan_recipe",
+                                    is_built_in=False,
+                                )
+                                db.add(new_rec)
+                                db.flush()
+                                for ing in selected_recipe.ingredients:
+                                    db_ing = RecipeIngredient(
+                                        recipe_id=new_rec.id,
+                                        food_id=ing.food_id,
+                                        quantity=ing.quantity,
+                                        unit=ing.unit,
+                                    )
+                                    db.add(db_ing)
+                                db.flush()
+                                recipe_id = new_rec.id
+                            persisted_recipe_map[selected_recipe.id] = recipe_id
+                    else:
+                        recipe_id = selected_recipe.id
                     notes_str = f"Target: ~{int(target_meal_cal)} kcal"
                 else:
                     meal_name = f"Incomplete {cat.capitalize()} Slot (Choose Recipe)"
@@ -931,12 +1021,12 @@ class MealPlannerService:
                     meal_category=cat,
                     recipe_id=recipe_id,
                     name=meal_name,
-                    servings=servings_multiplier,
-                    calories_kcal=nutr_dict["calories_kcal"],
-                    protein_g=nutr_dict["protein_g"],
-                    carbs_g=nutr_dict["carbs_g"],
-                    fat_g=nutr_dict["fat_g"],
-                    fiber_g=nutr_dict["fiber_g"],
+                    servings=round(servings_multiplier, 1),
+                    calories_kcal=round(nutr_dict["calories_kcal"], 1),
+                    protein_g=round(nutr_dict["protein_g"], 1),
+                    carbs_g=round(nutr_dict["carbs_g"], 1),
+                    fat_g=round(nutr_dict["fat_g"], 1),
+                    fiber_g=round(nutr_dict["fiber_g"], 1) if nutr_dict.get("fiber_g") is not None else None,
                     notes=notes_str,
                 )
                 db.add(planned_meal)
@@ -946,13 +1036,13 @@ class MealPlannerService:
                     item = PlannedMealItem(
                         planned_meal_id=planned_meal.id,
                         food_id=item_data["food_id"],
-                        quantity=item_data["quantity"],
+                        quantity=round(item_data["quantity"], 1),
                         unit=item_data["unit"],
-                        calories_kcal=item_data["calories_kcal"],
-                        protein_g=item_data["protein_g"],
-                        carbs_g=item_data["carbs_g"],
-                        fat_g=item_data["fat_g"],
-                        fiber_g=item_data["fiber_g"],
+                        calories_kcal=round(item_data["calories_kcal"], 1),
+                        protein_g=round(item_data["protein_g"], 1),
+                        carbs_g=round(item_data["carbs_g"], 1),
+                        fat_g=round(item_data["fat_g"], 1),
+                        fiber_g=round(item_data["fiber_g"], 1) if item_data.get("fiber_g") is not None else None,
                     )
                     db.add(item)
 
@@ -968,7 +1058,7 @@ class MealPlannerService:
         return plan
 
     def regenerate_shopping_list(self, db: Session, meal_plan_id: int) -> None:
-        """Aggregate all ingredients across the 7-day plan into ShoppingListItem records."""
+        """Aggregate all ingredients across the 7-day plan into ShoppingListItem records with unit conversion."""
         db.query(ShoppingListItem).filter(ShoppingListItem.meal_plan_id == meal_plan_id).delete()
 
         items = (
@@ -986,25 +1076,47 @@ class MealPlannerService:
             if not food:
                 continue
 
-            key = (it.food_id, it.unit.lower())
+            fam, norm_val, canon_unit = normalize_unit_and_value(it.quantity, it.unit)
+            key = (it.food_id, fam)
             if key not in aggregated:
                 aggregated[key] = {
                     "food_id": food.id,
                     "ingredient_name": food.name,
                     "category": food.category or "Other",
-                    "total_quantity": 0.0,
-                    "unit": it.unit,
+                    "fam": fam,
+                    "total_norm_val": 0.0,
+                    "canon_unit": canon_unit,
                 }
-            aggregated[key]["total_quantity"] += it.quantity
+            aggregated[key]["total_norm_val"] += norm_val
 
         for agg in aggregated.values():
+            fam = agg["fam"]
+            tot_val = agg["total_norm_val"]
+            if fam == "mass":
+                if tot_val >= 1000.0:
+                    final_qty = round(tot_val / 1000.0, 2)
+                    final_unit = "kg"
+                else:
+                    final_qty = round(tot_val, 1)
+                    final_unit = "g"
+            elif fam == "volume":
+                if tot_val >= 1000.0:
+                    final_qty = round(tot_val / 1000.0, 2)
+                    final_unit = "l"
+                else:
+                    final_qty = round(tot_val, 1)
+                    final_unit = "ml"
+            else:
+                final_qty = round(tot_val, 1)
+                final_unit = agg["canon_unit"]
+
             sli = ShoppingListItem(
                 meal_plan_id=meal_plan_id,
                 food_id=agg["food_id"],
                 ingredient_name=agg["ingredient_name"],
                 category=agg["category"],
-                total_quantity=round(agg["total_quantity"], 1),
-                unit=agg["unit"],
+                total_quantity=final_qty,
+                unit=final_unit,
                 is_checked=False,
                 is_excluded=False,
             )
@@ -1013,21 +1125,13 @@ class MealPlannerService:
     def to_response(
         self, db: Session, plan: MealPlan, user_profile_id: int
     ) -> MealPlanResponse:
-        """Convert a MealPlan model into a complete structured MealPlanResponse with tolerance evaluation."""
+        """Convert a MealPlan model into a complete structured MealPlanResponse with strict target evaluation."""
         target = (
             db.query(NutritionGoal)
             .filter(NutritionGoal.user_profile_id == user_profile_id)
             .first()
         )
         t_cal, t_p, t_c, t_f, t_fib = extract_plan_targets(plan.notes, target)
-
-        # Tolerance evaluation: source of truth is the plan's saved tolerance, with preference fallback
-        if getattr(plan, "target_tolerance_pct", None) is not None:
-            tol_pct = float(plan.target_tolerance_pct)
-        else:
-            pref = self.get_or_create_preferences(db, user_profile_id)
-            tol_pct = float(pref.target_tolerance_pct) if pref.target_tolerance_pct else 10.0
-        tol_factor = tol_pct / 100.0
 
         day_map: Dict[int, List[PlannedMeal]] = {d: [] for d in range(1, 8)}
         for pm in plan.planned_meals:
@@ -1124,131 +1228,193 @@ class MealPlannerService:
         adh_f = round((avg_f / t_f) * 100.0, 1) if t_f and t_f > 0 else None
         adh_fib = round((avg_fib / t_fib) * 100.0, 1) if t_fib and t_fib > 0 else None
 
-        # Feature G: Evaluate constraints and tolerances
-        unmet: List[UnmetConstraintDetail] = []
+        # Feature G: Evaluate constraints consistently across 7 days and 4 nutrients (28 checks)
+        all_unmet_constraints: List[UnmetConstraintDetail] = []
+        plan_tol_pct = plan.target_tolerance_pct if (plan.target_tolerance_pct and plan.target_tolerance_pct > 0) else 10.0
+        tol_f = plan_tol_pct / 100.0
 
-        # Target mathematical compatibility check
+        for d in days_resp:
+            d_num = d.day_number
+            d_name = d.day_name
+
+            # Skip checking placeholder/incomplete days
+            has_placeholder = any(m.recipe_id is None for m in d.meals)
+            if has_placeholder:
+                continue
+
+            cal_thresh = max(35.0, tol_f * t_cal)
+            cal_delta = round(d.total_calories - t_cal, 1)
+            if abs(cal_delta) > cal_thresh:
+                all_unmet_constraints.append(
+                    UnmetConstraintDetail(
+                        target_name="Calories",
+                        target_value=t_cal,
+                        actual_value=d.total_calories,
+                        status="unmet",
+                        day_number=d_num,
+                        nutrient="Calories",
+                        discrepancy=cal_delta,
+                        tolerance_pct=plan_tol_pct,
+                        is_permitted_exception=False,
+                        explanation=f"Day {d_num} ({d_name}): Calories {d.total_calories:.0f} kcal deviate by {cal_delta:+.0f} kcal from target {t_cal:.0f} kcal (threshold ±{cal_thresh:.0f} kcal, ±{plan_tol_pct:.0f}%).",
+                        suggestion="Adjust portions or accompaniment foods to balance daily caloric energy.",
+                    )
+                )
+
+            p_thresh = max(3.0, tol_f * t_p)
+            p_delta = round(d.total_protein - t_p, 1)
+            if abs(p_delta) > p_thresh:
+                all_unmet_constraints.append(
+                    UnmetConstraintDetail(
+                        target_name="Protein",
+                        target_value=t_p,
+                        actual_value=d.total_protein,
+                        status="unmet",
+                        day_number=d_num,
+                        nutrient="Protein",
+                        discrepancy=p_delta,
+                        tolerance_pct=plan_tol_pct,
+                        is_permitted_exception=False,
+                        explanation=f"Day {d_num} ({d_name}): Protein {d.total_protein:.1f}g deviates by {p_delta:+.1f}g from target {t_p:.0f}g (threshold ±{p_thresh:.1f}g, ±{plan_tol_pct:.0f}%).",
+                        suggestion="Add or adjust a protein-dense staple item (e.g. Greek yogurt, egg whites, whey).",
+                    )
+                )
+
+            c_thresh = max(5.0, tol_f * t_c)
+            c_delta = round(d.total_carbs - t_c, 1)
+            if abs(c_delta) > c_thresh:
+                all_unmet_constraints.append(
+                    UnmetConstraintDetail(
+                        target_name="Carbohydrates",
+                        target_value=t_c,
+                        actual_value=d.total_carbs,
+                        status="unmet",
+                        day_number=d_num,
+                        nutrient="Carbohydrates",
+                        discrepancy=c_delta,
+                        tolerance_pct=plan_tol_pct,
+                        is_permitted_exception=False,
+                        explanation=f"Day {d_num} ({d_name}): Carbohydrates {d.total_carbs:.1f}g deviate by {c_delta:+.1f}g from target {t_c:.0f}g (threshold ±{c_thresh:.1f}g, ±{plan_tol_pct:.0f}%).",
+                        suggestion="Add or adjust complex carbohydrate portions (e.g. oats, banana, rice).",
+                    )
+                )
+
+            f_thresh = max(3.0, tol_f * t_f)
+            f_delta = round(d.total_fat - t_f, 1)
+            if abs(f_delta) > f_thresh:
+                all_unmet_constraints.append(
+                    UnmetConstraintDetail(
+                        target_name="Fat",
+                        target_value=t_f,
+                        actual_value=d.total_fat,
+                        status="unmet",
+                        day_number=d_num,
+                        nutrient="Fat",
+                        discrepancy=f_delta,
+                        tolerance_pct=plan_tol_pct,
+                        is_permitted_exception=False,
+                        explanation=f"Day {d_num} ({d_name}): Fat {d.total_fat:.1f}g deviates by {f_delta:+.1f}g from target {t_f:.0f}g (threshold ±{f_thresh:.1f}g, ±{plan_tol_pct:.0f}%).",
+                        suggestion="Adjust healthy fats (e.g. olive oil dressing, almonds, peanut butter).",
+                    )
+                )
+
+        # Target mathematical compatibility check for manual targets
         is_compat, compat_msg, expected_cal = check_target_compatibility(
             target_calories=t_cal,
             target_protein=t_p,
             target_carbs=t_c,
             target_fat=t_f,
-            tolerance_pct=tol_pct,
         )
         if not is_compat and compat_msg:
-            unmet.append(
+            all_unmet_constraints.append(
                 UnmetConstraintDetail(
                     target_name="Target Compatibility",
                     target_value=t_cal,
                     actual_value=round(expected_cal, 1),
-                    tolerance_pct=tol_pct,
-                    upper_limit=round(t_cal * (1.0 + tol_factor), 1),
                     status="conflict",
+                    discrepancy=round(expected_cal - t_cal, 1),
+                    is_permitted_exception=False,
+                    explanation=compat_msg,
                     suggestion=compat_msg,
                 )
             )
 
-        def check_target(name: str, actual: float, target_val: Optional[float], unit_str: str):
-            if not target_val or target_val <= 0:
-                return
-            upper = target_val * (1.0 + tol_factor)
-            lower = target_val * (1.0 - tol_factor)
-            if actual > upper:
-                unmet.append(
-                    UnmetConstraintDetail(
-                        target_name=name,
-                        target_value=target_val,
-                        actual_value=actual,
-                        tolerance_pct=tol_pct,
-                        upper_limit=round(upper, 1),
-                        status="exceeded",
-                        suggestion=f"Planned {name.lower()} ({actual} {unit_str}) exceed upper limit ({round(upper, 1)} {unit_str}). Consider lighter meal options or reducing portions.",
-                    )
-                )
-            elif actual < lower:
-                unmet.append(
-                    UnmetConstraintDetail(
-                        target_name=name,
-                        target_value=target_val,
-                        actual_value=actual,
-                        tolerance_pct=tol_pct,
-                        upper_limit=round(upper, 1),
-                        status="under",
-                        suggestion=f"Planned {name.lower()} ({actual} {unit_str}) are below lower limit ({round(lower, 1)} {unit_str}). Consider adding an extra snack or denser staple portions.",
-                    )
-                )
-
-        check_target("Calories", avg_cal, t_cal, "kcal")
-        check_target("Protein", avg_p, t_p, "g")
-        check_target("Carbohydrates", avg_c, t_c, "g")
-        check_target("Fat", avg_f, t_f, "g")
-        check_target("Fiber", avg_fib, t_fib, "g")
-
-        # Check daily calorie balance across all 7 days
-        day_deviations = []
-        for d in days_resp:
-            has_placeholder = any(m.recipe_id is None for m in d.meals)
-            if not has_placeholder and t_cal > 0:
-                dev_pct = ((d.total_calories - t_cal) / t_cal) * 100.0
-                if abs(dev_pct) > tol_pct:
-                    day_deviations.append(
-                        f"Day {d.day_number} ({d.day_name}: {d.total_calories:.0f} kcal, {dev_pct:+.1f}%)"
-                    )
-        if day_deviations:
-            unmet.append(
-                UnmetConstraintDetail(
-                    target_name="Daily Calorie Balance",
-                    target_value=t_cal,
-                    actual_value=avg_cal,
-                    tolerance_pct=tol_pct,
-                    upper_limit=round(t_cal * (1.0 + tol_factor), 1),
-                    status="under" if any("-" in x.split("kcal,")[1] for x in day_deviations) else "exceeded",
-                    suggestion=f"Daily calories deviate beyond ±{tol_pct:.0f}% tolerance on: {'; '.join(day_deviations)}. Consider adjusting individual meal choices.",
-                )
-            )
-
-        # Phase 6: Check recipe variety constraints
-        missing_recipes = [m for d in days_resp for m in d.meals if m.recipe_id is None]
-        if missing_recipes:
-            slots_desc = ", ".join(f"Day {m.day_number} {m.meal_category}" for m in missing_recipes[:3])
-            if len(missing_recipes) > 3:
-                slots_desc += f" and {len(missing_recipes) - 3} more"
-            total_slots = sum(len(d.meals) for d in days_resp)
-            unmet.append(
+        # Check for placeholder shortage in plan
+        has_placeholders = any(m.recipe_id is None for d in days_resp for m in d.meals)
+        if has_placeholders or (plan.notes and "Advisories:" in plan.notes):
+            all_unmet_constraints.append(
                 UnmetConstraintDetail(
                     target_name="Recipe Variety",
-                    target_value=float(total_slots),
-                    actual_value=float(total_slots - len(missing_recipes)),
-                    tolerance_pct=0.0,
-                    upper_limit=float(total_slots),
-                    status="conflict",
-                    suggestion=f"Catalogue shortage: {len(missing_recipes)} slot(s) ({slots_desc}) could not be filled with a distinct recipe without violating spacing (≥2 days) or repetition rules. Slot(s) left incomplete without fabricated nutrition. Use 'Replace' to choose or create recipes, or reduce dietary filters.",
+                    target_value=len(plan.planned_meals),
+                    actual_value=len([m for m in plan.planned_meals if m.recipe_id is not None]),
+                    status="unmet",
+                    discrepancy=0.0,
+                    is_permitted_exception=False,
+                    explanation="Due to active dietary exclusions, an eligible recipe shortage occurred.",
+                    suggestion="Due to strict dietary exclusions, an eligible recipe shortage occurred. Please replace incomplete slots with suitable recipes.",
                 )
             )
 
-        # Surface plan advisories (Level 2 cross-category adaptation or Level 3 repetition relaxation)
-        if plan.notes and "[Advisories:" in plan.notes:
-            adv_match = re.search(r"\[Advisories:\s*(.*?)\]", plan.notes)
-            if adv_match:
-                adv_text = adv_match.group(1)
-                total_slots = sum(len(d.meals) for d in days_resp)
-                for part in adv_text.split(";"):
-                    clean_part = part.strip()
-                    if clean_part:
-                        is_conflict = "infeasible" in clean_part.lower() or "incomplete" in clean_part.lower() or "no eligible" in clean_part.lower()
-                        unmet.append(
-                            UnmetConstraintDetail(
-                                target_name="Dietary Feasibility" if is_conflict else "Variety Adjustment",
-                                target_value=float(total_slots),
-                                actual_value=float(total_slots - len(missing_recipes)),
-                                tolerance_pct=0.0,
-                                upper_limit=float(total_slots),
-                                status="conflict" if is_conflict else "relaxed",
-                                suggestion=clean_part,
-                            )
-                        )
+        # Mandatory Acceptance Criteria:
+        # - 0 Target Constraints: full success
+        # - 1 Target Constraint: permitted exception, clearly identified
+        # - >1 Target Constraints: generation must NOT report success (marked as "best_effort")
+        nutrition_violations = [u for u in all_unmet_constraints if u.nutrient in ("Calories", "Protein", "Carbohydrates", "Fat")]
+        constraint_count = len(nutrition_violations)
+        if constraint_count == 0 and not has_placeholders:
+            plan_status = "success"
+            is_successful = True
+            permitted_exception_count = 0
+            final_constraints = [u for u in all_unmet_constraints if u not in nutrition_violations]
+        elif constraint_count == 1 and not has_placeholders:
+            plan_status = "success"
+            is_successful = True
+            permitted_exception_count = 1
+            nutrition_violations[0].is_permitted_exception = True
+            nutrition_violations[0].status = "permitted_exception"
+            final_constraints = all_unmet_constraints
+        else:
+            plan_status = "best_effort"
+            is_successful = False
+            permitted_exception_count = 0
+            final_constraints = all_unmet_constraints
 
-        weekly_overview = WeeklyNutritionOverview(
+        # Quantifiable Strategy Metrics
+        unique_recipe_ids = set()
+        total_meal_count = 0
+        total_cooking_time = 0
+        for m in plan.planned_meals:
+            if m.recipe_id:
+                unique_recipe_ids.add(m.recipe_id)
+                total_meal_count += 1
+                if m.recipe:
+                    total_cooking_time += (m.recipe.prep_time_minutes or 0) + (m.recipe.cook_time_minutes or 0)
+
+        unique_ingredients = set()
+        total_items_count = 0
+        for pm in plan.planned_meals:
+            for item in pm.items:
+                if item.food_id:
+                    unique_ingredients.add(item.food_id)
+                    total_items_count += 1
+
+        shopping_list_count = db.query(ShoppingListItem).filter(ShoppingListItem.meal_plan_id == plan.id).count()
+
+        repetition_rate = round((total_meal_count - len(unique_recipe_ids)) / max(1, total_meal_count), 2)
+        reuse_score = round(total_items_count / max(1, len(unique_ingredients)), 2)
+        target_compliance_rate = round(max(0.0, (28 - constraint_count) / 28.0), 3)
+
+        strat_metrics = StrategyMetricsResponse(
+            unique_ingredients_count=len(unique_ingredients),
+            unique_recipes_count=len(unique_recipe_ids),
+            meal_repetition_rate=repetition_rate,
+            ingredient_reuse_score=reuse_score,
+            total_cooking_time_minutes=total_cooking_time,
+            shopping_list_item_count=shopping_list_count,
+            target_compliance_rate=target_compliance_rate,
+        )
+
+        overview = WeeklyNutritionOverview(
             average_daily_calories=avg_cal,
             average_daily_protein=avg_p,
             average_daily_carbs=avg_c,
@@ -1259,13 +1425,18 @@ class MealPlannerService:
             target_carbs=t_c,
             target_fat=t_f,
             target_fiber=t_fib,
-            tolerance_pct=tol_pct,
+            plan_status=plan_status,
+            is_successful=is_successful,
+            constraint_count=constraint_count,
+            permitted_exception_count=permitted_exception_count,
+            strategy_metrics=strat_metrics,
+            tolerance_pct=plan.target_tolerance_pct,
             adherence_calories_pct=adh_cal,
             adherence_protein_pct=adh_p,
             adherence_carbs_pct=adh_c,
             adherence_fat_pct=adh_f,
             adherence_fiber_pct=adh_fib,
-            unmet_constraints=unmet,
+            unmet_constraints=final_constraints,
         )
 
         return MealPlanResponse(
@@ -1275,12 +1446,12 @@ class MealPlannerService:
             start_date=plan.start_date,
             end_date=plan.end_date,
             is_active=plan.is_active,
-            target_tolerance_pct=tol_pct,
+            target_tolerance_pct=plan.target_tolerance_pct,
             notes=plan.notes,
             created_at=plan.created_at,
             updated_at=plan.updated_at,
             days=days_resp,
-            weekly_overview=weekly_overview,
+            weekly_overview=overview,
         )
 
     def replace_planned_meal(
@@ -1296,7 +1467,6 @@ class MealPlannerService:
         plan = meal.meal_plan
         user_profile_id = plan.user_profile_id if plan else None
 
-        # Mandatory Disliked Food Exclusion Safeguard (Section 3: Never introduce a disliked ingredient)
         if user_profile_id:
             disliked_ids, disliked_terms = self.get_all_disliked_filters(db, user_profile_id)
             if self.is_recipe_disliked(recipe, disliked_ids, disliked_terms):
@@ -1305,7 +1475,6 @@ class MealPlannerService:
                     detail=f"Cannot assign recipe '{recipe.name}' because it contains disliked ingredients.",
                 )
 
-        # Repetition & Spacing Validation
         other_meals = (
             db.query(PlannedMeal)
             .filter(
@@ -1334,19 +1503,17 @@ class MealPlannerService:
                 detail=f"Cannot assign this recipe: it already appears {times_str} in this weekly plan (maximum is {max_allowed}).",
             )
 
-        # Clear existing items
         db.query(PlannedMealItem).filter(PlannedMealItem.planned_meal_id == planned_meal_id).delete()
 
-        # Reject 1.5x serving option explicitly (Feature E)
         serv_mult = servings or meal.servings or 1.0
         if serv_mult == 1.5:
             serv_mult = 1.0
 
         meal.recipe_id = recipe.id
         meal.name = recipe.name
-        meal.servings = serv_mult
+        meal.servings = round(serv_mult, 1)
 
-        recipe_base_servings = recipe.servings if recipe.servings > 0 else 1
+        recipe_base_servings = recipe.servings if recipe.servings > 0 else 1.0
         effective_ratio = serv_mult / recipe_base_servings
 
         m_cal = 0.0
@@ -1356,7 +1523,6 @@ class MealPlannerService:
         m_fib = 0.0
 
         for ing in recipe.ingredients:
-            # Enforce portion increments of 5 for weight/volume, whole counts for counts
             rounded_qty = round_portion_quantity(ing.quantity * effective_ratio, ing.unit)
             food = ing.food
             if food:
@@ -1416,12 +1582,11 @@ class MealPlannerService:
         if not meal or new_servings <= 0:
             return None
 
-        # Feature E: Remove 1.5x serving option
         if new_servings == 1.5:
             new_servings = 1.0
 
         ratio = new_servings / (meal.servings if meal.servings > 0 else 1.0)
-        meal.servings = new_servings
+        meal.servings = round(new_servings, 1)
 
         m_cal = 0.0
         m_p = 0.0
@@ -1430,7 +1595,6 @@ class MealPlannerService:
         m_fib = 0.0
 
         for item in meal.items:
-            # Enforce portion increments of 5 for weight/volume, whole counts for counts
             new_qty = round_portion_quantity(item.quantity * ratio, item.unit)
             item.quantity = new_qty
 
@@ -1477,15 +1641,21 @@ class MealPlannerService:
         return meal
 
     def regenerate_planned_meal(
-        self, db: Session, planned_meal_id: int, user_profile_id: int
+        self, db: Session, planned_meal_id: int, user_profile_id: Optional[int] = None
     ) -> Optional[PlannedMeal]:
         meal = db.query(PlannedMeal).filter(PlannedMeal.id == planned_meal_id).first()
         if not meal:
             return None
 
-        disliked_ids, disliked_terms = self.get_all_disliked_filters(db, user_profile_id)
+        plan = meal.meal_plan
+        if user_profile_id is None:
+            user_profile_id = plan.user_profile_id if plan else None
+        if not user_profile_id:
+            return meal
 
-        # Collect current assignments of all other meals in the plan
+        disliked_ids, disliked_terms = self.get_all_disliked_filters(db, user_profile_id)
+        recipes = recipe_repository.get_all(db, user_profile_id=user_profile_id, include_built_in=True)
+
         other_meals = (
             db.query(PlannedMeal)
             .filter(
@@ -1499,11 +1669,6 @@ class MealPlannerService:
             if om.recipe_id:
                 assignments.setdefault(om.recipe_id, []).append(om.day_number)
 
-        recipes = recipe_repository.get_all(
-            db, user_profile_id=user_profile_id, include_built_in=True
-        )
-
-        # Correct Target Resolution (Section 5: Do not use 0-calorie placeholder value as target)
         target_cal = meal.calories_kcal
         if not meal.recipe_id or target_cal <= 0:
             plan = meal.meal_plan
@@ -1512,36 +1677,23 @@ class MealPlannerService:
             tot_w = sum(cat_weights.get(c, 0.25) for c in ["breakfast", "lunch", "dinner", "snacks"])
             target_cal = (cat_weights.get(meal.meal_category.lower(), 0.25) / tot_w) * t_cal
 
-        # Relaxation Hierarchy: Level 1 -> Level 2 -> Level 3
-        # Level 1: Native category with repetition <= 2 and spacing >= 3
-        cat_candidates = [
+        eligible = [
             r for r in recipes
             if category_matches(r.meal_category, meal.meal_category)
+            and r.id != meal.recipe_id
             and not self.is_recipe_disliked(r, disliked_ids, disliked_terms)
+            and check_recipe_repetition_and_spacing(r.id, meal.day_number, assignments)[0]
         ]
-        eligible = []
-        for r in cat_candidates:
-            if r.id == meal.recipe_id:
-                continue
-            ok, _ = check_recipe_repetition_and_spacing(r.id, meal.day_number, assignments)
-            if ok:
-                eligible.append(r)
 
-        # Level 2: Cross category suitable recipes
         if not eligible:
-            cross_cands = [
+            eligible = [
                 r for r in recipes
                 if is_cross_category_suitable(r, meal.meal_category)
+                and r.id != meal.recipe_id
                 and not self.is_recipe_disliked(r, disliked_ids, disliked_terms)
+                and check_recipe_repetition_and_spacing(r.id, meal.day_number, assignments, max_occurrences=2)[0]
             ]
-            for r in cross_cands:
-                if r.id == meal.recipe_id:
-                    continue
-                ok, _ = check_recipe_repetition_and_spacing(r.id, meal.day_number, assignments)
-                if ok:
-                    eligible.append(r)
 
-        # Level 3: Controlled repetition relaxation (allow up to 3 occurrences with spacing >= 3)
         if not eligible:
             all_cands = [
                 r for r in recipes
@@ -1556,13 +1708,62 @@ class MealPlannerService:
                     eligible.append(r)
 
         if not eligible:
+            foods = db.query(Food).all()
+            food_map = {f.external_id: f for f in foods if f.external_id}
+            if food_map:
+                cand_generator = CandidateMealGenerator(food_map)
+                plan = meal.meal_plan
+                t_cal, t_p, t_c, t_f, _ = extract_plan_targets(plan.notes if plan else None, None)
+                cat_weights = {"breakfast": 0.25, "lunch": 0.35, "dinner": 0.35, "snacks": 0.15, "snack": 0.15}
+                tot_w = sum(cat_weights.get(c, 0.25) for c in ["breakfast", "lunch", "dinner", "snacks"])
+                c_targets = {meal.meal_category.lower(): (cat_weights.get(meal.meal_category.lower(), 0.25) / tot_w) * t_cal}
+                dynamic_cands = cand_generator.generate_candidates(
+                    cats=[meal.meal_category.lower()],
+                    cat_targets=c_targets,
+                    disliked_ids=disliked_ids,
+                    disliked_terms=disliked_terms,
+                    target_calories=t_cal,
+                    target_protein=t_p,
+                    target_carbs=t_c,
+                    target_fat=t_f,
+                    simplicity_preference="simple",
+                    start_id=10000,
+                )
+                for dc in dynamic_cands:
+                    existing = db.query(Recipe).filter(Recipe.name == dc.name).first()
+                    if existing:
+                        eligible.append(existing)
+                    else:
+                        new_rec = Recipe(
+                            user_profile_id=None,
+                            name=dc.name,
+                            meal_category=dc.meal_category,
+                            servings=1,
+                            prep_time_minutes=dc.prep_time_minutes,
+                            cook_time_minutes=dc.cook_time_minutes,
+                            instructions="Combine ingredients and prepare as indicated.",
+                            tags=dc.tags,
+                            is_built_in=True,
+                        )
+                        db.add(new_rec)
+                        db.flush()
+                        for ing in dc.ingredients:
+                            db_ing = RecipeIngredient(
+                                recipe_id=new_rec.id,
+                                food_id=ing.food_id,
+                                quantity=ing.quantity,
+                                unit=ing.unit,
+                            )
+                            db.add(db_ing)
+                        db.flush()
+                        eligible.append(new_rec)
+
+        if not eligible:
             return meal
 
-        # Rule 3: Prefer unused recipes
         unused = [r for r in eligible if len(assignments.get(r.id, [])) == 0]
         pool = unused if unused else eligible
 
-        # Rank by closeness to meal calories
         scored = []
         for r in pool:
             nutr = recipe_service.compute_recipe_nutrition(r)
@@ -1586,22 +1787,10 @@ class MealPlannerService:
         food_name: str,
         food_id: Optional[int] = None,
     ) -> DislikeIngredientResponse:
-        """Mark an ingredient as disliked and regenerate ONLY the affected meals.
-
-        Guarantees:
-        - Food is added to persistent disliked-food list.
-        - Only affected planned meals are regenerated; all other meals and days are preserved.
-        - Replacements aim within ±25 kcal of the original meal when feasible.
-        - Portion quantities respect Feature D (multiples of 5 for weight/volume).
-        - Shopping list is updated to reflect replacements.
-        - If replacement fails, original meal is kept intact and failure is reported.
-        """
-        # 1. Persist disliked food
         disliked_resp = self.add_disliked_food(
             db, user_profile_id, food_name=food_name, food_id=food_id
         )
 
-        # 2. Get active plan
         plan = self.get_active_plan(db, user_profile_id)
         if not plan:
             return DislikeIngredientResponse(
@@ -1609,376 +1798,172 @@ class MealPlannerService:
                 affected_meals_count=0,
                 regenerated_meals_count=0,
                 failed_meals_count=0,
-                message=f"Added '{disliked_resp.food_name}' to disliked list. No active meal plan found.",
+                message=f"Added '{disliked_resp.food_name}' to disliked list. No active meal plan found to regenerate.",
                 plan=None,
             )
 
-        # 3. Find only planned meals containing the disliked food
-        affected_meals: List[PlannedMeal] = []
-        for pm in plan.planned_meals:
-            is_affected = False
-            for it in pm.items:
-                it_name = it.food.name if it.food else ""
-                if (disliked_resp.food_id and it.food_id == disliked_resp.food_id) or matches_disliked(
-                    it_name, [disliked_resp.food_name]
-                ):
-                    is_affected = True
-                    break
-            if not is_affected and matches_disliked(pm.name, [disliked_resp.food_name]):
-                is_affected = True
-
-            if is_affected:
-                affected_meals.append(pm)
-
-        if not affected_meals:
-            return DislikeIngredientResponse(
-                disliked_food=disliked_resp,
-                affected_meals_count=0,
-                regenerated_meals_count=0,
-                failed_meals_count=0,
-                message=f"Added '{disliked_resp.food_name}' to disliked list. None of your currently planned meals contain this ingredient.",
-                plan=self.to_response(db, plan, user_profile_id),
-            )
-
-        # 4. Fetch all active disliked filters
         disliked_ids, disliked_terms = self.get_all_disliked_filters(db, user_profile_id)
 
-        # 5. Fetch candidate recipes
-        all_recipes = recipe_repository.get_all(
-            db, user_profile_id=user_profile_id, include_built_in=True
-        )
-        eligible_recipes = [
-            r for r in all_recipes if not self.is_recipe_disliked(r, disliked_ids, disliked_terms)
-        ]
+        affected_meals: List[PlannedMeal] = []
+        for m in plan.planned_meals:
+            is_affected = False
+            for it in m.items:
+                if it.food_id and it.food_id in disliked_ids:
+                    is_affected = True
+                    break
+                if matches_disliked(it.food.name if it.food else "", disliked_terms):
+                    is_affected = True
+                    break
+            if not is_affected and m.recipe:
+                if self.is_recipe_disliked(m.recipe, disliked_ids, disliked_terms):
+                    is_affected = True
 
-        # Collect current assignments of all unaffected meals
-        current_assignments: Dict[int, List[int]] = {}
-        affected_ids = set(m.id for m in affected_meals)
-        for pm in plan.planned_meals:
-            if pm.id not in affected_ids and pm.recipe_id:
-                current_assignments.setdefault(pm.recipe_id, []).append(pm.day_number)
+            if is_affected:
+                affected_meals.append(m)
 
         regenerated_count = 0
         failed_count = 0
-        within_25_count = 0
 
-        # Sort affected meals by day_number
-        affected_meals.sort(key=lambda m: (m.day_number, m.id))
-
-        for pm in affected_meals:
-            target_cal = pm.calories_kcal
-            cat = pm.meal_category.lower().strip()
-
-            cat_candidates = [
-                r for r in eligible_recipes
-                if category_matches(r.meal_category, cat) and r.id != pm.recipe_id
-            ]
-            if not cat_candidates:
-                cat_candidates = [r for r in eligible_recipes if r.id != pm.recipe_id]
-
-            # Filter candidates by Phase 6 repetition & spacing rules
-            eligible_for_pm = []
-            for r in cat_candidates:
-                ok, _ = check_recipe_repetition_and_spacing(r.id, pm.day_number, current_assignments)
-                if ok:
-                    eligible_for_pm.append(r)
-
-            if not eligible_for_pm:
-                # No valid alternative found without violating rules: retain original meal
+        for m in affected_meals:
+            old_recipe_id = m.recipe_id
+            updated = self.regenerate_planned_meal(db, m.id)
+            if updated and updated.recipe_id is not None and updated.recipe_id != old_recipe_id:
+                regenerated_count += 1
+            else:
+                db.query(PlannedMealItem).filter(PlannedMealItem.planned_meal_id == m.id).delete()
+                m.recipe_id = None
+                m.name = f"Incomplete {m.meal_category.capitalize()} Slot (Disliked Ingredient Removed)"
+                m.servings = 1.0
+                m.calories_kcal = 0.0
+                m.protein_g = 0.0
+                m.carbs_g = 0.0
+                m.fat_g = 0.0
+                m.fiber_g = 0.0
+                m.notes = "Ingredient was disliked. Please replace with an alternative recipe."
+                db.flush()
                 failed_count += 1
-                if pm.recipe_id:
-                    current_assignments.setdefault(pm.recipe_id, []).append(pm.day_number)
-                continue
 
-            # Prefer unused recipes
-            unused = [r for r in eligible_for_pm if len(current_assignments.get(r.id, [])) == 0]
-            pool = unused if unused else eligible_for_pm
-
-            # Score candidates: prefer closest calories, ideally within ±25 kcal
-            scored: List[Tuple[Recipe, float, float]] = []
-            for r in pool:
-                r_nutr = recipe_service.compute_recipe_nutrition(r)
-                per_cal = r_nutr["per_serving_calories"] or target_cal
-                # Test with serving = 1.0 (or 2.0 if target > 1.6 * per_cal)
-                serv_mult = 2.0 if per_cal > 0 and (target_cal / per_cal) >= 1.6 else 1.0
-                cand_cal = per_cal * serv_mult
-                diff = abs(cand_cal - target_cal)
-                scored.append((r, serv_mult, diff))
-
-            # Sort by: whether within 25 kcal, then absolute calorie diff, then recipe ID
-            scored.sort(key=lambda x: (0 if x[2] <= 25.0 else 1, x[2], x[0].id))
-
-            best_recipe, best_serv, best_diff = scored[0]
-            if best_diff <= 25.0:
-                within_25_count += 1
-
-            # Replace the affected meal
-            self.replace_planned_meal(db, pm.id, best_recipe.id, servings=best_serv)
-            current_assignments.setdefault(best_recipe.id, []).append(pm.day_number)
-            regenerated_count += 1
-
-        # 6. Regenerate shopping list and refresh plan
         self.regenerate_shopping_list(db, plan.id)
         db.commit()
         db.refresh(plan)
 
-        updated_plan_resp = self.to_response(db, plan, user_profile_id)
+        msg = (
+            f"Added '{disliked_resp.food_name}' to disliked foods. "
+            f"Found {len(affected_meals)} affected meal(s): {regenerated_count} successfully replaced with alternatives, "
+            f"{failed_count} could not be automatically replaced and were cleared for manual selection."
+        )
 
-        # 7. Formulate honest summary message
-        msg_parts = [
-            f"Added '{disliked_resp.food_name}' to disliked list.",
-            f"Found {len(affected_meals)} affected meal(s); successfully replaced {regenerated_count}.",
-        ]
-        if within_25_count > 0:
-            msg_parts.append(f"{within_25_count} replacement(s) matched within ±25 kcal tolerance.")
-        if failed_count > 0:
-            msg_parts.append(
-                f"{failed_count} meal(s) could not be safely replaced due to lack of eligible recipes and were kept intact."
-            )
-
+        plan_resp = self.to_response(db, plan, user_profile_id)
         return DislikeIngredientResponse(
             disliked_food=disliked_resp,
             affected_meals_count=len(affected_meals),
             regenerated_meals_count=regenerated_count,
             failed_meals_count=failed_count,
-            message=" ".join(msg_parts),
-            plan=updated_plan_resp,
+            message=msg,
+            plan=plan_resp,
         )
 
     def log_planned_meals(
         self, db: Session, user_profile_id: int, req: LogPlannedMealRequest
     ) -> LogPlannedMealResponse:
         meals_to_log: List[PlannedMeal] = []
-
         if req.planned_meal_id:
-            m = (
-                db.query(PlannedMeal)
-                .join(MealPlan, PlannedMeal.meal_plan_id == MealPlan.id)
-                .filter(
-                    PlannedMeal.id == req.planned_meal_id,
-                    MealPlan.user_profile_id == user_profile_id,
+            pm = db.query(PlannedMeal).filter(PlannedMeal.id == req.planned_meal_id).first()
+            if not pm:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Planned meal with id {req.planned_meal_id} not found.",
                 )
-                .first()
-            )
-            if m:
-                meals_to_log.append(m)
+            if pm.recipe_id is None:
+                return LogPlannedMealResponse(
+                    success=False,
+                    logged_count=0,
+                    skipped_count=1,
+                    message="Cannot log incomplete meal slot without a recipe.",
+                    logged_items=[],
+                )
+            meals_to_log.append(pm)
         elif req.day_number:
-            active_plan = self.get_active_plan(db, user_profile_id)
-            if active_plan:
-                meals = (
-                    db.query(PlannedMeal)
-                    .filter(
-                        PlannedMeal.meal_plan_id == active_plan.id,
-                        PlannedMeal.day_number == req.day_number,
-                    )
-                    .all()
+            plan = self.get_active_plan(db, user_profile_id)
+            if not plan:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No active meal plan found to log from.",
                 )
-                meals_to_log.extend(meals)
-
-        if not meals_to_log:
-            return LogPlannedMealResponse(
-                success=False,
-                logged_count=0,
-                skipped_count=0,
-                message="No planned meals found to log.",
-                logged_items=[],
+            meals_to_log = [
+                m for m in plan.planned_meals
+                if m.day_number == req.day_number and m.recipe_id is not None
+            ]
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either planned_meal_id or day_number must be provided to log meals.",
             )
 
-        logged_count = 0
+        logged_items: List[LoggedItemSummary] = []
         skipped_count = 0
-        placeholder_skipped_count = 0
-        logged_items_summary: List[LoggedItemSummary] = []
+        total_logged = 0
 
         for pm in meals_to_log:
-            cat = pm.meal_category.lower().strip()
-            if cat == "snack":
-                cat = "snacks"
-
-            # Case A: Planned meal has individual items
-            if pm.items:
-                for it in pm.items:
-                    if not it.food_id:
-                        continue
-                    # Check for duplicate
-                    existing = (
-                        db.query(MealLog)
-                        .filter(
-                            MealLog.user_profile_id == user_profile_id,
-                            MealLog.logged_date == req.target_date,
-                            MealLog.meal_category == cat,
-                            MealLog.food_id == it.food_id,
-                        )
-                        .first()
-                    )
-                    if existing and req.skip_if_already_logged:
-                        skipped_count += 1
-                        continue
-
-                    log_entry = MealLogCreate(
-                        logged_date=req.target_date,
-                        meal_category=cat,
-                        food_id=it.food_id,
-                        quantity=it.quantity,
-                        unit=it.unit,
-                        notes=f"Logged from plan: {pm.name}",
-                    )
-                    created = meal_log_service.create_meal_log(db, log_entry)
-                    logged_count += 1
-                    food_name = it.food.name if it.food else "Ingredient"
-                    logged_items_summary.append(
-                        LoggedItemSummary(
-                            food_name=food_name,
-                            quantity=it.quantity,
-                            unit=it.unit,
-                            meal_log_id=created.id,
-                        )
-                    )
-            # Case B: Planned meal has an associated recipe with ingredients
-            elif pm.recipe and pm.recipe.ingredients:
-                base_servings = pm.recipe.servings if pm.recipe.servings > 0 else 1
-                ratio = pm.servings / base_servings
-                for ing in pm.recipe.ingredients:
-                    if not ing.food_id:
-                        continue
-                    rounded_qty = round_portion_quantity(ing.quantity * ratio, ing.unit)
-                    existing = (
-                        db.query(MealLog)
-                        .filter(
-                            MealLog.user_profile_id == user_profile_id,
-                            MealLog.logged_date == req.target_date,
-                            MealLog.meal_category == cat,
-                            MealLog.food_id == ing.food_id,
-                        )
-                        .first()
-                    )
-                    if existing and req.skip_if_already_logged:
-                        skipped_count += 1
-                        continue
-
-                    log_entry = MealLogCreate(
-                        logged_date=req.target_date,
-                        meal_category=cat,
-                        food_id=ing.food_id,
-                        quantity=rounded_qty,
-                        unit=ing.unit,
-                        notes=f"Logged from recipe: {pm.recipe.name}",
-                    )
-                    created = meal_log_service.create_meal_log(db, log_entry)
-                    logged_count += 1
-                    food_name = ing.food.name if ing.food else "Ingredient"
-                    logged_items_summary.append(
-                        LoggedItemSummary(
-                            food_name=food_name,
-                            quantity=rounded_qty,
-                            unit=ing.unit,
-                            meal_log_id=created.id,
-                        )
-                    )
-            # Case C: Planned meal has a direct food_id reference
-            elif pm.food_id:
-                existing = (
-                    db.query(MealLog)
-                    .filter(
-                        MealLog.user_profile_id == user_profile_id,
-                        MealLog.logged_date == req.target_date,
-                        MealLog.meal_category == cat,
-                        MealLog.food_id == pm.food_id,
-                    )
-                    .first()
-                )
-                if existing and req.skip_if_already_logged:
-                    skipped_count += 1
-                else:
-                    food_obj = food_repository.get_by_id(db, pm.food_id)
-                    unit = food_obj.serving_unit if food_obj and food_obj.serving_unit else "g"
-                    qty = pm.servings * (food_obj.serving_quantity if food_obj and food_obj.serving_quantity else 100.0)
-                    log_entry = MealLogCreate(
-                        logged_date=req.target_date,
-                        meal_category=cat,
-                        food_id=pm.food_id,
-                        quantity=qty,
-                        unit=unit,
-                        notes=f"Logged from plan: {pm.name}",
-                    )
-                    created = meal_log_service.create_meal_log(db, log_entry)
-                    logged_count += 1
-                    logged_items_summary.append(
-                        LoggedItemSummary(
-                            food_name=pm.name,
-                            quantity=qty,
-                            unit=unit,
-                            meal_log_id=created.id,
-                        )
-                    )
-            # Case D: Incomplete placeholder slot without recipe or food reference
-            elif pm.recipe_id is None and not pm.items and not pm.food_id:
-                # Incomplete placeholder slot - skip logging to avoid creating fictitious meal logs
-                placeholder_skipped_count += 1
+            # Skip placeholder incomplete meals
+            if pm.recipe_id is None:
+                skipped_count += 1
                 continue
-            # Case E: Custom entry with direct positive nutritional macros
-            elif pm.calories_kcal > 0:
-                existing = (
-                    db.query(MealLog)
-                    .filter(
-                        MealLog.user_profile_id == user_profile_id,
-                        MealLog.logged_date == req.target_date,
-                        MealLog.meal_category == cat,
-                        MealLog.food_name == pm.name,
-                    )
-                    .first()
-                )
-                if existing and req.skip_if_already_logged:
-                    skipped_count += 1
-                else:
-                    log_entry = MealLogCreate(
-                        logged_date=req.target_date,
-                        meal_category=cat,
-                        food_name=pm.name,
-                        quantity=1.0,
-                        unit="serving",
-                        calories_kcal=pm.calories_kcal,
-                        protein_g=pm.protein_g,
-                        carbs_g=pm.carbs_g,
-                        fat_g=pm.fat_g,
-                        fiber_g=pm.fiber_g,
-                        notes="Logged from plan",
-                    )
-                    created = meal_log_service.create_meal_log(db, log_entry)
-                    logged_count += 1
-                    logged_items_summary.append(
-                        LoggedItemSummary(
-                            food_name=pm.name,
-                            quantity=1.0,
-                            unit="serving",
-                            meal_log_id=created.id,
+
+            cat = pm.meal_category.lower()
+            if cat not in ("breakfast", "lunch", "dinner", "snack", "snacks"):
+                cat = "snack"
+            if cat == "snacks":
+                cat = "snack"
+
+            for item in pm.items:
+                if not item.food_id:
+                    continue
+
+                if req.skip_if_already_logged:
+                    existing = (
+                        db.query(MealLog)
+                        .filter(
+                            MealLog.user_profile_id == user_profile_id,
+                            MealLog.logged_date == req.target_date,
+                            MealLog.meal_category == cat,
+                            MealLog.food_id == item.food_id,
                         )
+                        .first()
                     )
+                    if existing:
+                        skipped_count += 1
+                        continue
 
-        db.commit()
+                log_entry = MealLogCreate(
+                    logged_date=req.target_date,
+                    meal_category=cat,
+                    food_id=item.food_id,
+                    quantity=item.quantity,
+                    unit=item.unit,
+                    notes=f"Logged from plan: {pm.name}",
+                )
+                created_log = meal_log_service.create_meal_log(db, log_entry)
+                total_logged += 1
+                logged_items.append(
+                    LoggedItemSummary(
+                        food_name=item.food.name if item.food else "Item",
+                        quantity=item.quantity,
+                        unit=item.unit,
+                        meal_log_id=created_log.id,
+                    )
+                )
 
-        if logged_count > 0:
-            msg = f"Successfully logged {logged_count} item(s) to Daily Log for {req.target_date}."
-            if skipped_count > 0:
-                msg += f" Skipped {skipped_count} item(s) already logged."
-            if placeholder_skipped_count > 0:
-                msg += f" Skipped {placeholder_skipped_count} incomplete slot(s)."
-            success = True
-        elif skipped_count > 0:
-            msg = f"No new items logged. All {skipped_count} item(s) were already logged for {req.target_date}."
-            success = True
-        elif placeholder_skipped_count > 0:
-            msg = "Cannot log incomplete meal slot without a recipe or ingredients. Please assign a recipe first."
-            success = False
-        else:
-            msg = "No loggable items found in the selected meal."
-            success = False
+        msg = f"Successfully logged {total_logged} item(s) to food diary for {req.target_date}."
+        if skipped_count > 0:
+            msg += f" Skipped {skipped_count} item(s) already logged."
 
         return LogPlannedMealResponse(
-            success=success,
-            logged_count=logged_count,
-            skipped_count=skipped_count + placeholder_skipped_count,
+            success=True,
+            logged_count=total_logged,
+            skipped_count=skipped_count,
             message=msg,
-            logged_items=logged_items_summary,
+            logged_items=logged_items,
         )
 
     def delete_plan(self, db: Session, meal_plan_id: int) -> bool:

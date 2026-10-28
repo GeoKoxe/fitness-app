@@ -1,4 +1,4 @@
-import type { GoalEstimate, NutritionGoal } from '../types/nutritionGoal'
+import type { GenerateGoalsResponse, GoalEstimate, NutritionGoal } from '../types/nutritionGoal'
 import type { NutritionReportResponse } from '../types/nutritionReport'
 import { request } from './api'
 
@@ -14,6 +14,9 @@ export const nutritionGoalService = {
   estimateGoals: (): Promise<GoalEstimate> =>
     request<GoalEstimate>('/nutrition/goals/estimate'),
 
+  generateGoals: (): Promise<GenerateGoalsResponse> =>
+    request<GenerateGoalsResponse>('/nutrition/goals/generate'),
+
   getReport: (startDate: string, endDate: string): Promise<NutritionReportResponse> => {
     const params = new URLSearchParams({
       start_date: startDate,
@@ -22,4 +25,3 @@ export const nutritionGoalService = {
     return request<NutritionReportResponse>(`/nutrition/reports?${params.toString()}`)
   },
 }
-

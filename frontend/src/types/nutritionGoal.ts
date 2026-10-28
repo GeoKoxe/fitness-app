@@ -21,3 +21,26 @@ export interface GoalEstimate {
   formula_explanation: string
 }
 
+export interface GeneratedProfile {
+  key: string
+  name: string
+  calories_kcal: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  fiber_g: number
+  protein_pct: number
+  carbs_pct: number
+  fat_pct: number
+  purpose: string
+  explanation: string
+}
+
+export interface GenerateGoalsResponse {
+  bmr_kcal: number
+  tdee_kcal: number
+  training_sessions_per_week: number
+  training_activity_mult: number
+  explanation: string
+  profiles: GeneratedProfile[]
+}
