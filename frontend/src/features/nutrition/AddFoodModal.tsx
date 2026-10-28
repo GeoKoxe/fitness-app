@@ -265,7 +265,10 @@ export function AddFoodModal({
             <div>
               <div className="relative">
                 <input
+                  id="food-search-input"
+                  name="food-search-input"
                   type="text"
+                  aria-label="Search by food name, brand, or barcode"
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -394,10 +397,12 @@ export function AddFoodModal({
               {/* Portion Inputs */}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
+                  <label htmlFor="portion-quantity" className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                     Portion Quantity *
                   </label>
                   <input
+                    id="portion-quantity"
+                    name="portion-quantity"
                     type="number"
                     step="any"
                     min="1"
@@ -407,10 +412,12 @@ export function AddFoodModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
+                  <label htmlFor="portion-unit" className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                     Unit
                   </label>
                   <select
+                    id="portion-unit"
+                    name="portion-unit"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                     className="w-full px-3 py-1.5 text-sm border border-sand dark:border-darkBorder rounded-xl bg-surface dark:bg-darkSurface text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
@@ -424,10 +431,12 @@ export function AddFoodModal({
 
               {/* Notes input */}
               <div className="mb-3">
-                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
+                <label htmlFor="portion-notes" className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Notes (optional)
                 </label>
                 <input
+                  id="portion-notes"
+                  name="portion-notes"
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

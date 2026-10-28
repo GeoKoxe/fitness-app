@@ -280,6 +280,8 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
               {!selectedFood ? (
                 <div className="relative">
                   <input
+                    id="recipe-ingredient-search"
+                    name="recipe-ingredient-search"
                     type="text"
                     placeholder="Search catalogue food to add..."
                     aria-label="Search catalogue food to add"
@@ -315,6 +317,8 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
                     <span className="text-xs font-bold text-ink">{selectedFood.name}</span>
                   </div>
                   <input
+                    id="recipe-ingredient-qty"
+                    name="recipe-ingredient-qty"
                     type="number"
                     min="0.1"
                     step="1"
@@ -324,6 +328,8 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
                     className="w-16 px-2 py-1 bg-surface border border-edge rounded text-xs text-center text-ink focus:outline-hidden focus:ring-2 focus:ring-brand"
                   />
                   <select
+                    id="recipe-ingredient-unit"
+                    name="recipe-ingredient-unit"
                     value={ingUnit}
                     aria-label="Ingredient unit"
                     onChange={(e) => setIngUnit(e.target.value)}
@@ -334,6 +340,8 @@ export function CreateRecipeModal({ onClose, onSuccess }: CreateRecipeModalProps
                     <option value="serving">serving</option>
                   </select>
                   <input
+                    id="recipe-ingredient-notes"
+                    name="recipe-ingredient-notes"
                     type="text"
                     placeholder="notes (optional)"
                     aria-label="Ingredient preparation notes"

@@ -56,14 +56,14 @@ function NutrientProgress({ label, consumed, target, unit, accent }: NutrientPro
 
   return (
     <div className="p-4 rounded-xl bg-canvas/60 dark:bg-darkCanvas/60 border border-sand dark:border-darkBorder flex flex-col justify-between">
-      <div className="flex justify-between items-start">
-        <span className="text-xs font-bold text-ink dark:text-darkInk">{label}</span>
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-1">
+        <span className="text-xs font-bold text-ink dark:text-darkInk truncate">{label}</span>
         {hasTarget ? (
-          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${accentStyles.badge}`}>
+          <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap self-start sm:self-auto shrink-0 ${accentStyles.badge}`}>
             {isOver ? `+${diff} ${unit} over` : `${diff} ${unit} left`}
           </span>
         ) : (
-          <span className="text-[10px] text-inkSecondary dark:text-darkInkSecondary">No target</span>
+          <span className="text-[10px] text-inkSecondary dark:text-darkInkSecondary whitespace-nowrap">No target</span>
         )}
       </div>
 
@@ -201,7 +201,7 @@ export function DailyProgressDashboard({
       )}
 
       {/* Macronutrient & Fiber Progress Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <NutrientProgress
           label="Protein"
           consumed={protein_g}

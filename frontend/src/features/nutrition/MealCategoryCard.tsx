@@ -184,6 +184,8 @@ export function MealCategoryCard({
                 {editingLogId === log.id ? (
                   <div className="flex items-center gap-1.5">
                     <input
+                      id={`edit-qty-${log.id}`}
+                      name={`edit-qty-${log.id}`}
                       type="number"
                       step="any"
                       min="1"

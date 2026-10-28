@@ -132,14 +132,14 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setShowDislikedModal(true)}
-            className="px-3.5 py-2 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+            className="px-3 py-2 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
             title="Manage disliked ingredients"
           >
-            🚫 Disliked Foods
+            🚫 Disliked
           </button>
 
           {activePlan && (
@@ -147,14 +147,14 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
               <button
                 type="button"
                 onClick={() => setShowShoppingList(!showShoppingList)}
-                className="px-3.5 py-2 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+                className="px-3 py-2 text-xs font-semibold text-ink dark:text-darkInk bg-canvas dark:bg-darkCanvas hover:bg-mist/50 dark:hover:bg-darkMist border border-sand dark:border-darkBorder rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               >
                 🛒 {showShoppingList ? 'View Plan' : 'Shopping List'}
               </button>
               <button
                 type="button"
                 onClick={handleDeletePlan}
-                className="px-3 py-2 text-xs font-semibold text-alert dark:text-darkCoral hover:bg-mist/30 dark:hover:bg-darkMist/30 rounded-xl border border-alert/30 dark:border-darkCoral/30 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert"
+                className="px-3 py-2 text-xs font-semibold text-alert dark:text-darkCoral hover:bg-mist/30 dark:hover:bg-darkMist/30 rounded-xl border border-alert/30 dark:border-darkCoral/30 transition cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert"
               >
                 Delete Plan
               </button>
@@ -164,7 +164,7 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
           <button
             type="button"
             onClick={() => setShowGenerateModal(true)}
-            className="px-4 py-2 text-xs font-semibold text-white bg-midnight hover:opacity-95 dark:bg-darkMidnight dark:text-white rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+            className="px-3.5 py-2 text-xs font-semibold text-white bg-midnight hover:opacity-95 dark:bg-darkMidnight dark:text-white rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle col-span-2 sm:col-span-1"
           >
             ✨ {activePlan ? 'Regenerate Week' : 'Generate 7-Day Plan'}
           </button>
@@ -207,7 +207,7 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
           <WeeklyOverviewCard overview={activePlan.weekly_overview} />
 
           {/* 7-Day Navigation Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+          <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1 sm:grid sm:grid-cols-4 md:grid-cols-7">
             {activePlan.days.map((day) => {
               const isSelected = day.day_number === selectedDayNumber
               return (
@@ -215,7 +215,7 @@ export function MealPlannerDashboard({ goals, onMealLogged, onViewRecipe }: Meal
                   key={day.day_number}
                   type="button"
                   onClick={() => setSelectedDayNumber(day.day_number)}
-                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                  className={`p-2.5 sm:p-3 min-w-[84px] shrink-0 sm:min-w-0 rounded-xl border text-left transition cursor-pointer ${
                     isSelected
                       ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white border-midnight dark:border-darkMidnight shadow-xs'
                       : 'bg-surface dark:bg-darkSurface border-sand dark:border-darkBorder text-ink dark:text-darkInk hover:bg-canvas dark:hover:bg-darkCanvas'

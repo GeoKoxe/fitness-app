@@ -116,7 +116,7 @@ export function ProfileForm({
             Full Name <span className="text-red-500">*</span>
           </label>
           <input
-            id="name"
+            id="name" name="name" autoComplete="name"
             type="text"
             required
             value={name}
@@ -131,7 +131,7 @@ export function ProfileForm({
             Height (cm)
           </label>
           <input
-            id="height"
+            id="height" name="height"
             type="number"
             step="0.1"
             min="50"
@@ -148,7 +148,7 @@ export function ProfileForm({
             Date of Birth
           </label>
           <input
-            id="dateOfBirth"
+            id="dateOfBirth" name="dateOfBirth" autoComplete="bday"
             type="date"
             value={dateOfBirth}
             onChange={(e) => setDateOfBirth(e.target.value)}
@@ -161,7 +161,7 @@ export function ProfileForm({
             Biological Sex
           </label>
           <select
-            id="sex"
+            id="sex" name="sex"
             value={sex}
             onChange={(e) => setSex(e.target.value as SexType | '')}
             className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -178,7 +178,7 @@ export function ProfileForm({
             Activity Level
           </label>
           <select
-            id="activityLevel"
+            id="activityLevel" name="activityLevel"
             value={activityLevel}
             onChange={(e) => setActivityLevel(e.target.value as ActivityLevelType | '')}
             className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"

@@ -142,10 +142,12 @@ export function CustomFoodModal({
 
         <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
+            <label htmlFor="custom-food-name" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
               Food Name *
             </label>
             <input
+              id="custom-food-name"
+              name="custom-food-name"
               type="text"
               required
               value={name}
@@ -157,10 +159,12 @@ export function CustomFoodModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
+              <label htmlFor="custom-food-brand" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Brand (optional)
               </label>
               <input
+                id="custom-food-brand"
+                name="custom-food-brand"
                 type="text"
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
@@ -169,10 +173,12 @@ export function CustomFoodModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
+              <label htmlFor="custom-food-category" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Category (optional)
               </label>
               <input
+                id="custom-food-category"
+                name="custom-food-category"
                 type="text"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -184,10 +190,12 @@ export function CustomFoodModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
+              <label htmlFor="custom-food-basis" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Nutritional Basis
               </label>
               <select
+                id="custom-food-basis"
+                name="custom-food-basis"
                 value={basis}
                 onChange={(e) => setBasis(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
@@ -198,10 +206,12 @@ export function CustomFoodModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
+              <label htmlFor="custom-food-serving-desc" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Serving Description
               </label>
               <input
+                id="custom-food-serving-desc"
+                name="custom-food-serving-desc"
                 type="text"
                 value={servingDesc}
                 onChange={(e) => setServingDesc(e.target.value)}
@@ -210,23 +220,29 @@ export function CustomFoodModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
+              <label htmlFor="custom-food-serving-qty" className="block text-xs font-semibold text-ink dark:text-darkInk mb-1">
                 Serving Size (qty / unit)
               </label>
               <div className="flex gap-1.5">
                 <input
+                  id="custom-food-serving-qty"
+                  name="custom-food-serving-qty"
                   type="number"
                   step="any"
                   value={servingQty}
                   onChange={(e) => setServingQty(e.target.value)}
                   placeholder="30"
+                  aria-label="Serving quantity"
                   className="w-16 px-2.5 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
                 <input
+                  id="custom-food-serving-unit"
+                  name="custom-food-serving-unit"
                   type="text"
                   value={servingUnit}
                   onChange={(e) => setServingUnit(e.target.value)}
                   placeholder="g"
+                  aria-label="Serving unit"
                   className="w-14 px-2 py-2 text-sm border border-sand dark:border-darkBorder rounded-xl bg-canvas dark:bg-darkCanvas text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"
                 />
               </div>
@@ -240,10 +256,12 @@ export function CustomFoodModal({
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
+                <label htmlFor="custom-food-calories" className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Calories (kcal) *
                 </label>
                 <input
+                  id="custom-food-calories"
+                  name="custom-food-calories"
                   type="number"
                   step="any"
                   min="0"
@@ -254,10 +272,12 @@ export function CustomFoodModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
+                <label htmlFor="custom-food-protein" className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Protein (g) *
                 </label>
                 <input
+                  id="custom-food-protein"
+                  name="custom-food-protein"
                   type="number"
                   step="any"
                   min="0"
@@ -268,10 +288,12 @@ export function CustomFoodModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-amber-800 dark:text-darkButter mb-1">
+                <label htmlFor="custom-food-carbs" className="block text-[11px] font-semibold text-amber-800 dark:text-darkButter mb-1">
                   Carbs (g) *
                 </label>
                 <input
+                  id="custom-food-carbs"
+                  name="custom-food-carbs"
                   type="number"
                   step="any"
                   min="0"
@@ -282,10 +304,12 @@ export function CustomFoodModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
+                <label htmlFor="custom-food-fat" className="block text-[11px] font-semibold text-ink dark:text-darkInk mb-1">
                   Fat (g) *
                 </label>
                 <input
+                  id="custom-food-fat"
+                  name="custom-food-fat"
                   type="number"
                   step="any"
                   min="0"
@@ -305,8 +329,10 @@ export function CustomFoodModal({
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Fiber (g)</label>
+                <label htmlFor="custom-food-fiber" className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Fiber (g)</label>
                 <input
+                  id="custom-food-fiber"
+                  name="custom-food-fiber"
                   type="number"
                   step="any"
                   min="0"
@@ -316,8 +342,10 @@ export function CustomFoodModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sugar (g)</label>
+                <label htmlFor="custom-food-sugar" className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sugar (g)</label>
                 <input
+                  id="custom-food-sugar"
+                  name="custom-food-sugar"
                   type="number"
                   step="any"
                   min="0"
@@ -327,8 +355,10 @@ export function CustomFoodModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sat Fat (g)</label>
+                <label htmlFor="custom-food-satfat" className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sat Fat (g)</label>
                 <input
+                  id="custom-food-satfat"
+                  name="custom-food-satfat"
                   type="number"
                   step="any"
                   min="0"
@@ -338,8 +368,10 @@ export function CustomFoodModal({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sodium (mg)</label>
+                <label htmlFor="custom-food-sodium" className="block text-[11px] font-medium text-inkSecondary dark:text-darkInkSecondary mb-1">Sodium (mg)</label>
                 <input
+                  id="custom-food-sodium"
+                  name="custom-food-sodium"
                   type="number"
                   step="any"
                   min="0"

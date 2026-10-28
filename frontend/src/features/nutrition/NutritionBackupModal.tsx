@@ -235,8 +235,11 @@ export function NutritionBackupModal({
               Select a FitPulse backup JSON file (v2.0 complete backup or legacy v1.x nutrition backup). Existing records are safely preserved without creating duplicates.
             </p>
             <input
+              id="nutrition-restore-file"
+              name="nutrition-restore-file"
               type="file"
               accept=".json"
+              aria-label="Upload FitPulse backup JSON file"
               onChange={handleFileChange}
               className="w-full text-xs text-inkSecondary dark:text-darkInkSecondary file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border file:border-sand dark:file:border-darkBorder file:text-xs file:font-semibold file:bg-canvas dark:file:bg-darkCanvas file:text-ink dark:file:text-darkInk hover:file:bg-mist/50 cursor-pointer pt-1"
             />

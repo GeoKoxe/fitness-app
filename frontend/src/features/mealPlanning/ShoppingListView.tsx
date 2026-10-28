@@ -191,7 +191,10 @@ export function ShoppingListView({ planId, planName, incompleteMealCount, onClos
                   >
                     <div className="flex items-center gap-3">
                       <input
+                        id={`shopping-item-${item.id}`}
+                        name={`shopping-item-${item.id}`}
                         type="checkbox"
+                        aria-label={`Mark ${item.ingredient_name} as purchased`}
                         checked={item.is_checked}
                         onChange={() => {}} // handled by row click
                         className="h-4 w-4 rounded-md border-sand dark:border-darkBorder text-midnight focus:ring-periwinkle cursor-pointer"
@@ -235,6 +238,9 @@ export function ShoppingListView({ planId, planName, incompleteMealCount, onClos
                 Copy plain text shopping list or download structured JSON.
               </p>
               <textarea
+                id="export-shopping-list-text"
+                name="export-shopping-list-text"
+                aria-label="Exported shopping list content"
                 readOnly
                 rows={12}
                 value={exportData.plain_text}

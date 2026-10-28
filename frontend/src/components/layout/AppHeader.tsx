@@ -1,11 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ThemeToggle } from '../../theme/ThemeToggle'
 
 export type MainSection = 'nutrition' | 'workouts' | 'body' | 'profile'
 
 interface AppHeaderProps {
   activeSection: MainSection
-  onSelectSection: (section: MainSection) => void
+  onSelectSection: (section: MainSection, subTab?: string) => void
+  showNav?: boolean
 }
 
 interface NavItem {
@@ -106,18 +107,21 @@ const NAV_ITEMS: NavItem[] = [
 export const AppHeader: React.FC<AppHeaderProps> = ({
   activeSection,
   onSelectSection,
+  showNav = true,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('')
+
   return (
-    <header className="sticky top-0 z-40 w-full bg-surface/90 dark:bg-darkSurface/90 backdrop-blur-md border-b border-sand dark:border-darkBorder transition-colors motion-reduce:transition-none">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Application Branding */}
-        <div className="flex items-center gap-3 shrink-0">
+    <header className="sticky top-0 z-40 w-full bg-surface/90 dark:bg-darkSurface/90 backdrop-blur-md border-b border-sand/80 dark:border-darkBorder transition-colors motion-reduce:transition-none">
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-2 sm:gap-4">
+        {/* Left: Branding & Section Title (Matching "Primary Dashboard" in Reference Image) */}
+        <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
           <div
-            className="w-9 h-9 rounded-xl bg-midnight text-white dark:bg-darkMidnight dark:text-darkCanvas flex items-center justify-center font-bold shadow-xs shrink-0"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-midnight text-white dark:bg-darkMidnight dark:text-darkCanvas flex items-center justify-center font-bold shadow-md shrink-0"
             aria-hidden="true"
           >
             <svg
-              className="w-5 h-5 text-coral dark:text-darkCoral"
+              className="w-4 h-4 sm:w-5 sm:h-5 text-coral dark:text-darkCoral"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -130,69 +134,102 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               />
             </svg>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-bold text-lg tracking-tight text-ink dark:text-darkInk">
-              FitPulse
+          <div className="text-left">
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-inkSecondary dark:text-darkInkSecondary block leading-tight">
+              Primary
             </span>
-            <span className="hidden lg:inline-flex text-[11px] px-2 py-0.5 rounded-full bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary font-medium">
-              Personal Health &amp; Fitness
-            </span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold text-sm sm:text-lg tracking-tight text-ink dark:text-darkInk">
+                FitPulse
+              </span>
+              <span className="hidden sm:inline text-xs text-sand dark:text-darkBorder">•</span>
+              <span className="hidden sm:inline font-bold text-xs sm:text-sm text-midnight dark:text-darkMidnight">
+                Dashboard
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Primary Navigation */}
-        <nav
-          aria-label="Main Navigation"
-          className="fixed bottom-0 left-0 right-0 z-40 bg-surface/95 dark:bg-darkSurface/95 backdrop-blur-md border-t border-sand dark:border-darkBorder pb-[env(safe-area-inset-bottom)] md:static md:z-auto md:bg-canvas/80 md:dark:bg-darkCanvas/80 md:border md:border-sand/60 md:dark:border-darkBorder/60 md:pb-0 md:rounded-2xl transition-colors motion-reduce:transition-none shadow-lg md:shadow-none"
-        >
-          <ul className="flex items-center justify-around md:justify-start gap-1 p-1 list-none m-0 w-full max-w-md mx-auto md:max-w-none">
-            {NAV_ITEMS.map((item) => {
-              const isActive = activeSection === item.id
-              return (
-                <li key={item.id} className="flex-1 md:flex-initial">
-                  <button
-                    type="button"
-                    onClick={() => onSelectSection(item.id)}
-                    aria-label={item.ariaLabel}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`group relative w-full md:w-auto flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 min-h-[48px] md:min-h-[38px] px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:focus-visible:ring-offset-darkSurface ${
-                      isActive
-                        ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white shadow-xs'
-                        : 'text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk hover:bg-mist/40 dark:hover:bg-darkMist/40'
-                    }`}
-                  >
-                    <span
-                      className="w-5 h-5 flex items-center justify-center shrink-0"
-                      aria-hidden="true"
-                    >
-                      {item.icon}
-                    </span>
-                    <span className="truncate">
-                      <span className="hidden sm:inline">{item.desktopLabel}</span>
-                      <span className="sm:hidden">{item.mobileLabel}</span>
-                    </span>
-                    {isActive && (
-                      <span
-                        aria-hidden="true"
-                        className="md:hidden w-1 h-1 rounded-full bg-coral dark:bg-darkCoral -mt-0.5"
-                      />
-                    )}
-                    {isActive && (
-                      <span className="sr-only"> (current page)</span>
-                    )}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+        {/* Center: Search Bar Pill (Matching Search in Reference Image) */}
+        <div className="hidden lg:flex items-center flex-1 max-w-sm mx-4">
+          <div className="relative w-full">
+            <input
+              id="global-search"
+              name="global-search"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search metrics, routines, foods..."
+              aria-label="Search dashboard"
+              className="w-full pl-9 pr-4 py-2 rounded-2xl text-xs bg-canvas/80 dark:bg-darkCanvas/80 border border-sand dark:border-darkBorder text-ink dark:text-darkInk placeholder:text-inkSecondary/60 focus:outline-none focus:ring-2 focus:ring-periwinkle dark:focus:ring-darkPeriwinkle shadow-xs transition"
+            />
+            <svg
+              className="w-4 h-4 text-inkSecondary absolute left-3 top-2.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
 
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <ThemeToggle />
+        {/* Primary Navigation & Controls */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {showNav && (
+            <nav
+              aria-label="Main Navigation"
+              className="flex items-center bg-canvas/80 dark:bg-darkCanvas/80 p-1 rounded-2xl border border-sand/70 dark:border-darkBorder/70"
+            >
+              <ul className="flex items-center gap-1 list-none m-0 p-0">
+                {NAV_ITEMS.map((item) => {
+                  const isActive = activeSection === item.id
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => onSelectSection(item.id)}
+                        aria-label={item.ariaLabel}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`group relative flex items-center justify-center gap-1.5 min-h-[48px] px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle ${
+                          isActive
+                            ? 'bg-midnight text-white dark:bg-darkMidnight dark:text-white shadow-xs'
+                            : 'text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk hover:bg-mist/40 dark:hover:bg-darkMist/40'
+                        }`}
+                      >
+                        <span className="w-4 h-4 flex items-center justify-center shrink-0" aria-hidden="true">
+                          {item.icon}
+                        </span>
+                        <span className="hidden sm:inline">{item.desktopLabel}</span>
+                        {isActive && (
+                          <span className="sr-only"> (current page)</span>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </nav>
+          )}
+
+          {/* Theme Toggle & User Avatar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <ThemeToggle />
+
+            {/* Profile Avatar Badge (Matching Reference Image Avatar) */}
+            <button
+              type="button"
+              onClick={() => onSelectSection('profile')}
+              aria-label="User Account"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-midnight text-white dark:bg-darkMidnight dark:text-darkCanvas flex items-center justify-center font-bold text-xs shadow-xs border border-white/10 hover:opacity-90 transition cursor-pointer relative shrink-0"
+            >
+              <span>FP</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute -bottom-0.5 -right-0.5 ring-2 ring-surface dark:ring-darkSurface" />
+            </button>
+          </div>
         </div>
       </div>
     </header>
   )
 }
-

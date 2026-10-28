@@ -198,6 +198,8 @@ export function WorkoutPlannerView({
           <div className="flex flex-wrap items-center gap-2">
             {historyPlans.length > 1 && (
               <select
+                id="workout-history-plan-select"
+                name="workout-history-plan-select"
                 aria-label="Select workout plan from history"
                 value={activePlan?.id || ''}
                 onChange={(e) => handleSelectHistoryPlan(Number(e.target.value))}

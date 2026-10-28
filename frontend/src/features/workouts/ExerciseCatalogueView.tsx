@@ -139,6 +139,8 @@ export function ExerciseCatalogueView() {
         {/* Search Input */}
         <div className="relative">
           <input
+            id="exercise-search"
+            name="exercise-search"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

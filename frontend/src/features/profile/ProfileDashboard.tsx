@@ -308,11 +308,11 @@ export function ProfileDashboard({
           {/* Section Header */}
           <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-left transition-colors motion-reduce:transition-none">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
                 <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-darkInk">
                   Body &amp; Measurements
                 </h1>
-                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
+                <span className="inline-block whitespace-nowrap shrink-0 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-mist/70 dark:bg-darkMist text-ink dark:text-darkInk border border-sand/70 dark:border-darkBorder self-start sm:self-auto">
                   Greece • Metric (kg/cm)
                 </span>
               </div>
@@ -354,7 +354,7 @@ export function ProfileDashboard({
           <div
             role="tablist"
             aria-label="Body and Measurements Sections"
-            className="flex border-b border-sand dark:border-darkBorder gap-2 overflow-x-auto"
+            className="flex border-b border-sand dark:border-darkBorder gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-0.5"
           >
             {[
               { id: 'overview', label: 'Overview' },
@@ -370,7 +370,7 @@ export function ProfileDashboard({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`pb-3 px-4 text-sm font-semibold transition cursor-pointer motion-reduce:transition-none border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle ${
+                  className={`pb-2.5 sm:pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition cursor-pointer motion-reduce:transition-none border-b-2 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle ${
                     isActive
                       ? 'border-midnight text-midnight dark:border-darkMidnight dark:text-darkMidnight'
                       : 'border-transparent text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk'
@@ -382,11 +382,11 @@ export function ProfileDashboard({
             })}
           </div>
 
-          {/* Tab Content: OVERVIEW (Unified Health Command Center) */}
+          {/* Tab Content: OVERVIEW (Unified Health Command Center - Styled per Reference Image) */}
           {activeTab === 'overview' && (
             <div className="space-y-6 text-left">
               {/* Primary Snapshot Container */}
-              <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-6 shadow-xs transition-colors motion-reduce:transition-none space-y-6">
+              <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-3xl p-6 shadow-xs transition-colors motion-reduce:transition-none space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-sand/60 dark:border-darkBorder/60 pb-4">
                   <div>
                     <h2 className="text-base font-bold text-ink dark:text-darkInk">
@@ -412,157 +412,361 @@ export function ProfileDashboard({
 
                 {latestMeasurement ? (
                   <div className="space-y-6">
-                    {/* 4 Hero Metric Cards with Visual Hierarchy */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Card 1: Weight Anchor */}
-                      <div className="p-4 rounded-xl bg-canvas/70 dark:bg-darkCanvas/70 border border-sand dark:border-darkBorder flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
+                    {/* Top Row Grid: Hero Curve Card (2 cols) + Stacked Side Cards (1 col) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Hero Card: Line Curve with Milestone Pin & Bottom Wells (Matching Reference Image Hero) */}
+                      <div className="lg:col-span-2 bg-midnight text-white dark:bg-darkMidnight rounded-3xl p-6 sm:p-7 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[350px]">
+                        {/* Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-coral dark:text-darkCoral block">
+                              Trajectory
+                            </span>
+                            <h3 className="text-xl font-extrabold tracking-tight text-white">
+                              Overview
+                            </h3>
+                          </div>
+                          <div className="flex items-center gap-1 bg-white/10 p-1 rounded-2xl text-xs font-semibold self-start sm:self-auto">
+                            <button
+                              type="button"
+                              className="px-3 py-1 rounded-xl bg-white/25 text-white shadow-xs cursor-pointer"
+                            >
+                              Body Weight
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('trends')}
+                              className="px-3 py-1 rounded-xl text-white/70 hover:text-white cursor-pointer transition"
+                            >
+                              Trends
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Spline Wave Curve SVG with Peak Milestone Marker (Matching "9.178 Steps" in Image) */}
+                        <div className="my-4 relative z-10 w-full overflow-hidden select-none">
+                          <svg
+                            viewBox="0 0 500 130"
+                            className="w-full h-28 sm:h-36 overflow-visible"
+                            fill="none"
+                          >
+                            <defs>
+                              <linearGradient id="heroCurveGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#EF767A" stopOpacity="0.45" />
+                                <stop offset="100%" stopColor="#324376" stopOpacity="0.0" />
+                              </linearGradient>
+                            </defs>
+                            {/* Area fill */}
+                            <path
+                              d="M 10 95 C 70 80, 120 105, 170 85 C 220 65, 250 45, 300 40 C 350 35, 410 70, 490 60 L 490 120 L 10 120 Z"
+                              fill="url(#heroCurveGradient)"
+                            />
+                            {/* Spline line */}
+                            <path
+                              d="M 10 95 C 70 80, 120 105, 170 85 C 220 65, 250 45, 300 40 C 350 35, 410 70, 490 60"
+                              stroke="#EF767A"
+                              strokeWidth="3.5"
+                              strokeLinecap="round"
+                            />
+                            {/* Vertical guideline */}
+                            <line
+                              x1="300"
+                              y1="40"
+                              x2="300"
+                              y2="120"
+                              stroke="rgba(255, 255, 255, 0.3)"
+                              strokeDasharray="3 3"
+                            />
+                            {/* Milestone circular marker */}
+                            <circle
+                              cx="300"
+                              cy="40"
+                              r="7"
+                              fill="#EF767A"
+                              stroke="#FFFFFF"
+                              strokeWidth="3"
+                            />
+                          </svg>
+
+                          {/* Milestone Floating Pill (Matching "9.178 Steps" in Reference Image) */}
+                          <div
+                            className="absolute top-1 left-[54%] sm:left-[57%] transform -translate-x-1/2 -translate-y-2 bg-white/20 backdrop-blur-md border border-white/40 text-white px-3 py-1 rounded-2xl shadow-lg pointer-events-none text-center"
+                          >
+                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-80 block">
+                              Latest Entry
+                            </span>
+                            <span className="text-xs sm:text-sm font-extrabold block">
+                              {latestMeasurement.weight_kg != null ? `${latestMeasurement.weight_kg} kg` : '--'}
+                            </span>
+                          </div>
+
+                          {/* Month Indicators along bottom */}
+                          <div className="flex justify-between text-[11px] font-medium text-white/60 pt-2 px-2 border-t border-white/10">
+                            <span>May</span>
+                            <span>Jun</span>
+                            <span>Jul</span>
+                            <span className="px-2 py-0.5 rounded-full bg-white text-midnight font-bold">Oct</span>
+                            <span>Nov</span>
+                            <span>Dec</span>
+                          </div>
+                        </div>
+
+                        {/* Bottom Metric Wells (Embedded at the base of the Hero Card) */}
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3 border-t border-white/10 relative z-10 text-center">
+                          {/* Well 1 */}
+                          <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xs flex flex-col justify-between">
+                            <span className="text-[10px] font-medium text-white/70 block uppercase tracking-wider">
+                              Weight Delta
+                            </span>
+                            <div className="text-sm sm:text-base font-extrabold text-white mt-0.5">
+                              {weightDelta !== null ? (
+                                weightDelta > 0 ? `+${weightDelta} kg` : `${weightDelta} kg`
+                              ) : (
+                                'Baseline'
+                              )}
+                            </div>
+                            <span className="text-[9px] text-white/60 block mt-0.5">
+                              {previousMeasurement ? 'vs last log' : 'initial entry'}
+                            </span>
+                          </div>
+
+                          {/* Well 2: Elevated Center Well */}
+                          <div className="p-2.5 rounded-2xl bg-white/20 ring-1 ring-white/30 backdrop-blur-xs flex flex-col justify-between shadow-xs">
+                            <span className="text-[10px] font-bold text-coral dark:text-darkCoral block uppercase tracking-wider">
                               Body Weight
                             </span>
-                            {weightDelta !== null && (
-                              <span
-                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                                  weightDelta < 0
-                                    ? 'bg-status-success dark:bg-emerald-950/40 text-status-success-fg dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
-                                    : weightDelta > 0
-                                      ? 'bg-mist dark:bg-darkMist text-midnight dark:text-darkMidnight border border-sand'
-                                      : 'text-inkSecondary dark:text-darkInkSecondary'
-                                }`}
-                              >
-                                {weightDelta > 0
-                                  ? `↑ +${weightDelta} kg`
-                                  : `↓ ${weightDelta} kg`}
-                              </span>
-                            )}
+                            <div className="text-base sm:text-xl font-black text-white mt-0.5">
+                              {latestMeasurement.weight_kg != null ? latestMeasurement.weight_kg : '--'}
+                              <span className="text-xs font-normal text-white/80 ml-1">kg</span>
+                            </div>
+                            <span className="text-[9px] text-white/70 block mt-0.5">
+                              Current Mass
+                            </span>
                           </div>
-                          <div className="text-3xl font-extrabold text-ink dark:text-darkInk mt-2">
-                            {latestMeasurement.weight_kg != null ? (
-                              <>
-                                {latestMeasurement.weight_kg}{' '}
-                                <span className="text-sm font-normal text-inkSecondary dark:text-darkInkSecondary">
-                                  kg
-                                </span>
-                              </>
-                            ) : (
-                              '--'
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-inkSecondary dark:text-darkInkSecondary mt-3 pt-2 border-t border-sand/60 dark:border-darkBorder/60">
-                          {previousMeasurement?.weight_kg
-                            ? `Previous: ${previousMeasurement.weight_kg} kg`
-                            : 'Baseline measurement'}
-                        </div>
-                      </div>
 
-                      {/* Card 2: BMI with Graphical Gauge */}
-                      <div className="p-4 rounded-xl bg-canvas/70 dark:bg-darkCanvas/70 border border-sand dark:border-darkBorder flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
+                          {/* Well 3 */}
+                          <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-xs flex flex-col justify-between">
+                            <span className="text-[10px] font-medium text-white/70 block uppercase tracking-wider">
                               BMI
                             </span>
-                            {bmiInfo && (
-                              <span
-                                className={`text-xs font-semibold ${bmiInfo.textClass}`}
-                              >
-                                {bmiInfo.label}
-                              </span>
-                            )}
+                            <div className="text-sm sm:text-base font-extrabold text-white mt-0.5">
+                              {latestMeasurement.bmi != null ? latestMeasurement.bmi : '--'}
+                            </div>
+                            <span className="text-[9px] text-emerald-300 font-semibold block mt-0.5">
+                              {bmiInfo ? `Status: ${bmiInfo.label}` : 'Screening'}
+                            </span>
                           </div>
-                          <div className="text-3xl font-extrabold text-ink dark:text-darkInk mt-2">
-                            {latestMeasurement.bmi != null
-                              ? latestMeasurement.bmi
-                              : '--'}
+                        </div>
+                      </div>
+
+                      {/* Right Column: Stacked Activity Cards */}
+                      <div className="flex flex-col justify-between gap-4">
+                        {/* Card 1: BMI Classification (Matching "Daily Jogging" in Reference Image) */}
+                        <div className="p-5 rounded-3xl bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder shadow-card hover:shadow-md transition flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-13 h-13 rounded-2xl bg-mist/70 dark:bg-darkMist text-midnight dark:text-darkMidnight flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-inkSecondary dark:text-darkInkSecondary block">
+                                BMI Classification
+                              </span>
+                              <div className="flex items-baseline gap-2 mt-0.5">
+                                <span className="text-2xl font-black text-ink dark:text-darkInk">
+                                  {latestMeasurement.bmi != null ? latestMeasurement.bmi : '--'}
+                                </span>
+                                {bmiInfo && (
+                                  <span className={`text-xs font-bold ${bmiInfo.textClass}`}>
+                                    {bmiInfo.label}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Mini 4-Segment Scale */}
-                        {bmiInfo && (
-                          <div className="mt-3 pt-2 border-t border-sand/60 dark:border-darkBorder/60">
-                            <div className="h-2 w-full rounded-full flex overflow-hidden border border-sand/80 dark:border-darkBorder">
-                              <div
-                                className="bg-amber-300 dark:bg-amber-600/70"
-                                style={{ width: '17.5%' }}
-                                title="Underweight"
-                              />
-                              <div
-                                className="bg-emerald-400 dark:bg-emerald-600"
-                                style={{ width: '32.5%' }}
-                                title="Normal"
-                              />
-                              <div
-                                className="bg-amber-400 dark:bg-amber-500"
-                                style={{ width: '25%' }}
-                                title="Overweight"
-                              />
-                              <div
-                                className="bg-alert dark:bg-darkCoral"
-                                style={{ width: '25%' }}
-                                title="Obese"
-                              />
-                            </div>
-                            <div className="flex justify-between text-[9px] text-inkSecondary dark:text-darkInkSecondary mt-1">
-                              <span>&lt;18.5</span>
-                              <span>18.5-24.9</span>
-                              <span>25-29.9</span>
-                              <span>30+</span>
+                        {/* Card 2: Vibrant Waist-to-Hip Ratio Card (Matching "My Jogging" in Reference Image) */}
+                        <div className="p-6 rounded-3xl bg-gradient-to-br from-coral to-coralHover text-white dark:from-darkCoral dark:to-coral shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[175px]">
+                          <div className="flex items-center justify-between relative z-10">
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 rounded-2xl bg-white/20 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                              </div>
+                              <span className="text-sm font-bold text-white">
+                                Waist-to-Hip Ratio
+                              </span>
                             </div>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Card 3: Body Fat */}
-                      <div className="p-4 rounded-xl bg-canvas/70 dark:bg-darkCanvas/70 border border-sand dark:border-darkBorder flex flex-col justify-between">
+                          <div className="my-2 relative z-10">
+                            <span className="text-xs uppercase font-medium text-white/80 block tracking-wider">
+                              Proportional Balance
+                            </span>
+                            <div className="text-3xl font-black tracking-tight text-white mt-0.5">
+                              {waistToHip !== null ? `${waistToHip}` : '--'}
+                              <span className="text-xs font-normal text-white/80 ml-1.5">WHR</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-white/20 relative z-10 text-xs text-white/90">
+                            <span>Low health risk screening</span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('trends')}
+                              aria-label="View Waist to Hip Trends"
+                              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white text-white hover:text-coral transition flex items-center justify-center font-bold cursor-pointer"
+                            >
+                              &rarr;
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row Grid: 3 Feature Cards with Elevated Badges & Progress Bars (Matching Bottom Cards in Reference Image) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {/* Bottom Card 1: Body Fat Ratio */}
+                      <div className="p-6 rounded-3xl bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder shadow-card hover:shadow-md transition flex flex-col justify-between">
                         <div>
-                          <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
-                            Body Fat
-                          </span>
-                          <div className="text-3xl font-extrabold text-ink dark:text-darkInk mt-2">
+                          <div className="w-12 h-12 rounded-2xl bg-midnight text-white dark:bg-darkMidnight dark:text-darkCanvas flex items-center justify-center shadow-md mb-4">
+                            <svg className="w-6 h-6 text-coral dark:text-darkCoral" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-ink dark:text-darkInk">
+                              Body Fat
+                            </h4>
+                            <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
+                              Target ~15-20%
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-ink dark:text-darkInk mt-1">
                             {latestMeasurement.body_fat_percentage != null ? (
                               <>
                                 {latestMeasurement.body_fat_percentage}{' '}
-                                <span className="text-sm font-normal text-inkSecondary dark:text-darkInkSecondary">
-                                  %
-                                </span>
+                                <span className="text-xs font-normal text-inkSecondary dark:text-darkInkSecondary">%</span>
                               </>
                             ) : (
                               '--'
                             )}
                           </div>
                         </div>
-                        <div className="text-[11px] text-inkSecondary dark:text-darkInkSecondary mt-3 pt-2 border-t border-sand/60 dark:border-darkBorder/60">
-                          {latestMeasurement.fat_mass_kg != null
-                            ? `${latestMeasurement.fat_mass_kg} kg estimated fat`
-                            : 'Bioimpedance measurement'}
+
+                        {/* Progress Indicator & Status Pills */}
+                        <div className="mt-5 space-y-3">
+                          <div className="w-full bg-sand/60 dark:bg-darkBorder rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-coral dark:bg-darkCoral h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, (latestMeasurement.body_fat_percentage || 20) * 3)}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="px-2.5 py-1 rounded-full bg-mist/50 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary font-semibold">
+                              {latestMeasurement.fat_mass_kg != null ? `${latestMeasurement.fat_mass_kg} kg fat` : 'Bioimpedance'}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-full bg-status-success/30 text-status-success-fg dark:text-emerald-400 font-bold border border-emerald-300/40">
+                              Optimal Range
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Card 4: Muscle Mass */}
-                      <div className="p-4 rounded-xl bg-canvas/70 dark:bg-darkCanvas/70 border border-sand dark:border-darkBorder flex flex-col justify-between">
+                      {/* Bottom Card 2: Skeletal Muscle Mass */}
+                      <div className="p-6 rounded-3xl bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder shadow-card hover:shadow-md transition flex flex-col justify-between">
                         <div>
-                          <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
-                            Muscle Mass
-                          </span>
-                          <div className="text-3xl font-extrabold text-ink dark:text-darkInk mt-2">
+                          <div className="w-12 h-12 rounded-2xl bg-midnight text-white dark:bg-darkMidnight dark:text-darkCanvas flex items-center justify-center shadow-md mb-4">
+                            <svg className="w-6 h-6 text-butter dark:text-darkButter" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-ink dark:text-darkInk">
+                              Muscle Mass
+                            </h4>
+                            <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
+                              Vitality tracking
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-ink dark:text-darkInk mt-1">
                             {latestMeasurement.muscle_mass_kg != null ? (
                               <>
                                 {latestMeasurement.muscle_mass_kg}{' '}
-                                <span className="text-sm font-normal text-inkSecondary dark:text-darkInkSecondary">
-                                  kg
-                                </span>
+                                <span className="text-xs font-normal text-inkSecondary dark:text-darkInkSecondary">kg</span>
                               </>
                             ) : (
                               '--'
                             )}
                           </div>
                         </div>
-                        <div className="text-[11px] text-inkSecondary dark:text-darkInkSecondary mt-3 pt-2 border-t border-sand/60 dark:border-darkBorder/60">
-                          {latestMeasurement.skeletal_muscle_mass_kg != null
-                            ? `${latestMeasurement.skeletal_muscle_mass_kg} kg skeletal muscle`
-                            : 'Lean mass tracking'}
+
+                        {/* Progress Indicator & Status Pills */}
+                        <div className="mt-5 space-y-3">
+                          <div className="w-full bg-sand/60 dark:bg-darkBorder rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, ((latestMeasurement.muscle_mass_kg || 50) / 75) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="px-2.5 py-1 rounded-full bg-mist/50 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary font-semibold">
+                              {latestMeasurement.skeletal_muscle_mass_kg != null ? `${latestMeasurement.skeletal_muscle_mass_kg} kg skeletal` : 'Lean mass'}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-full bg-status-info/30 text-midnight dark:text-darkMidnight font-bold border border-midnight/20">
+                              High Vitality
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Card 3: Body Circumferences */}
+                      <div className="p-6 rounded-3xl bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder shadow-card hover:shadow-md transition flex flex-col justify-between">
+                        <div>
+                          <div className="w-12 h-12 rounded-2xl bg-midnight text-white dark:bg-darkMidnight dark:text-darkCanvas flex items-center justify-center shadow-md mb-4">
+                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                            </svg>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-ink dark:text-darkInk">
+                              Circumferences
+                            </h4>
+                            <span className="text-xs text-inkSecondary dark:text-darkInkSecondary font-medium">
+                              Waist &amp; Hips
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-ink dark:text-darkInk mt-1">
+                            {latestMeasurement.waist_circumference_cm != null ? (
+                              <>
+                                {latestMeasurement.waist_circumference_cm}{' '}
+                                <span className="text-xs font-normal text-inkSecondary dark:text-darkInkSecondary">cm waist</span>
+                              </>
+                            ) : (
+                              '--'
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Progress Indicator & Status Pills */}
+                        <div className="mt-5 space-y-3">
+                          <div className="w-full bg-sand/60 dark:bg-darkBorder rounded-full h-2 overflow-hidden">
+                            <div
+                              className="bg-periwinkle dark:bg-darkPeriwinkle h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, (waistToHip || 0.8) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="px-2.5 py-1 rounded-full bg-mist/50 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary font-semibold">
+                              {latestMeasurement.hip_circumference_cm != null ? `${latestMeasurement.hip_circumference_cm} cm hips` : 'Tape'}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-full bg-butter/30 text-ink dark:text-darkInk font-bold border border-sand">
+                              Proportional
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

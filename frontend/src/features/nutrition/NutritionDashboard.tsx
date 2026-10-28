@@ -125,11 +125,11 @@ export function NutritionDashboard() {
       {/* Section Header Card */}
       <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-6 shadow-xs flex flex-col sm:flex-row justify-between sm:items-center gap-4 text-left transition-colors motion-reduce:transition-none">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-darkInk">
               Nutrition &amp; Meals
             </h1>
-            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-mist/60 dark:bg-darkMist text-inkSecondary dark:text-darkInkSecondary border border-sand/60 dark:border-darkBorder/60">
+            <span className="inline-block whitespace-nowrap shrink-0 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-mist/70 dark:bg-darkMist text-ink dark:text-darkInk border border-sand/70 dark:border-darkBorder self-start sm:self-auto">
               Metric (kcal / g / mg)
             </span>
           </div>
@@ -157,7 +157,7 @@ export function NutritionDashboard() {
       <div
         role="tablist"
         aria-label="Nutrition Sections"
-        className="flex border-b border-sand dark:border-darkBorder gap-2 overflow-x-auto"
+        className="flex border-b border-sand dark:border-darkBorder gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-0.5"
       >
         {tabs.map((tab) => {
           const isActive = activeSubTab === tab.id
@@ -168,7 +168,7 @@ export function NutritionDashboard() {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveSubTab(tab.id)}
-              className={`pb-3 px-4 text-sm font-semibold transition cursor-pointer motion-reduce:transition-none border-b-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle ${
+              className={`pb-2.5 sm:pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition cursor-pointer motion-reduce:transition-none border-b-2 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle dark:focus-visible:ring-darkPeriwinkle ${
                 isActive
                   ? 'border-midnight text-midnight dark:border-darkMidnight dark:text-darkMidnight'
                   : 'border-transparent text-inkSecondary hover:text-ink dark:text-darkInkSecondary dark:hover:text-darkInk'
@@ -182,12 +182,12 @@ export function NutritionDashboard() {
 
       {/* Date Navigator (Visible on Daily Log tab) */}
       {activeSubTab === 'log' && (
-        <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-3 sm:p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="bg-surface dark:bg-darkSurface border border-sand dark:border-darkBorder rounded-2xl p-2.5 sm:p-4 shadow-xs flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => changeDateByDays(-1)}
-              className="p-2 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder hover:bg-mist/50 dark:hover:bg-darkMist text-ink dark:text-darkInk transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+              className="p-1.5 sm:p-2 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder hover:bg-mist/50 dark:hover:bg-darkMist text-ink dark:text-darkInk transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               aria-label="Previous day"
             >
               ◀
@@ -199,7 +199,7 @@ export function NutritionDashboard() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle cursor-pointer"
+                className="text-xs font-bold px-2 sm:px-3 py-1.5 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle cursor-pointer"
                 aria-label="Selected date"
               />
             </div>
@@ -207,7 +207,7 @@ export function NutritionDashboard() {
             <button
               type="button"
               onClick={() => changeDateByDays(1)}
-              className="p-2 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder hover:bg-mist/50 dark:hover:bg-darkMist text-ink dark:text-darkInk transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
+              className="p-1.5 sm:p-2 rounded-xl bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder hover:bg-mist/50 dark:hover:bg-darkMist text-ink dark:text-darkInk transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle"
               aria-label="Next day"
             >
               ▶
@@ -217,7 +217,7 @@ export function NutritionDashboard() {
               type="button"
               onClick={() => setSelectedDate(getTodayString())}
               disabled={isToday}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle ${
+              className={`text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl border transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-periwinkle ${
                 isToday
                   ? 'bg-mist/30 dark:bg-darkMist/30 border-sand/50 dark:border-darkBorder/50 text-inkSecondary dark:text-darkInkSecondary cursor-default'
                   : 'bg-canvas dark:bg-darkCanvas border-sand dark:border-darkBorder text-ink dark:text-darkInk hover:bg-mist/50 dark:hover:bg-darkMist'

@@ -116,6 +116,8 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
         {/* Filters */}
         <div className="mt-4 flex flex-col sm:flex-row gap-2">
           <input
+            id="replace-meal-search"
+            name="replace-meal-search"
             type="text"
             placeholder="Search recipes or tags..."
             aria-label="Search recipes"
@@ -124,6 +126,8 @@ export function ReplaceMealModal({ meal, activePlan, onClose, onSuccess }: Repla
             className="flex-1 px-3 py-1.5 bg-surface border border-edge rounded-lg text-xs text-ink placeholder:text-inkMuted focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <select
+            id="replace-meal-category"
+            name="replace-meal-category"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             aria-label="Filter category"

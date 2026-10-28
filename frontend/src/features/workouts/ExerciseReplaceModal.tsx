@@ -127,6 +127,8 @@ export function ExerciseReplaceModal({
         {/* Search Filter */}
         <div className="p-4 border-b border-edge bg-surfaceMuted">
           <input
+            id="replace-exercise-filter"
+            name="replace-exercise-filter"
             type="text"
             placeholder="Filter compatible alternatives..."
             aria-label="Filter compatible alternatives"

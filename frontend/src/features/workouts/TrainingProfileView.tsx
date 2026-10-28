@@ -665,6 +665,8 @@ export function TrainingProfileView() {
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <select
+            id="saved-config-select"
+            name="saved-config-select"
             aria-label="Select saved configuration"
             value={selectedSavedId ?? ''}
             onChange={(e) => setSelectedSavedId(e.target.value ? Number(e.target.value) : null)}
@@ -932,6 +934,8 @@ export function TrainingProfileView() {
 
           <div className="space-y-3 pt-2">
             <input
+              id="training-duration-range"
+              name="training-duration-range"
               type="range"
               aria-label="Preferred workout duration in minutes"
               min={15}
@@ -1152,6 +1156,8 @@ export function TrainingProfileView() {
           <div className="space-y-2">
             <div className="relative">
               <input
+                id="exclude-exercise-search"
+                name="exclude-exercise-search"
                 type="text"
                 placeholder="Search exercise to exclude..."
                 value={exerciseSearch}
@@ -1199,6 +1205,8 @@ export function TrainingProfileView() {
         </div>
 
         <textarea
+          id="training-considerations"
+          name="training-considerations"
           rows={3}
           value={considerations}
           onChange={(e) => setConsiderations(e.target.value)}

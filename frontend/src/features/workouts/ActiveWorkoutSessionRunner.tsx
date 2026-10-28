@@ -913,6 +913,8 @@ export function ActiveWorkoutSessionRunner({
                       {/* Weight Input */}
                       <div className="col-span-4 sm:col-span-3">
                         <input
+                          id={`set-weight-${ex.order_in_session}-${set.set_number}`}
+                          name={`set-weight-${ex.order_in_session}-${set.set_number}`}
                           type="number"
                           step="0.5"
                           min="0"
@@ -930,6 +932,8 @@ export function ActiveWorkoutSessionRunner({
                       {/* Reps Input */}
                       <div className="col-span-3 sm:col-span-3">
                         <input
+                          id={`set-reps-${ex.order_in_session}-${set.set_number}`}
+                          name={`set-reps-${ex.order_in_session}-${set.set_number}`}
                           type="number"
                           min="0"
                           placeholder="Reps"
@@ -993,7 +997,10 @@ export function ActiveWorkoutSessionRunner({
 
             {/* Exercise Notes */}
             <input
+              id={`exercise-notes-${ex.order_in_session}`}
+              name={`exercise-notes-${ex.order_in_session}`}
               type="text"
+              aria-label={`Notes for ${ex.exercise_name}`}
               placeholder="Notes on this movement (tempo, pain-free ROM, RPE...)"
               value={ex.notes || ''}
               onChange={(e) => handleExerciseNotesChange(ex.order_in_session, e.target.value)}

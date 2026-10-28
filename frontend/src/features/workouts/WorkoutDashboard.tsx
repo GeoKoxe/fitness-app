@@ -80,16 +80,16 @@ export function WorkoutDashboard() {
       </div>
 
       {/* Sub-navigation Tabs */}
-      <div className="border-b border-edge pb-2">
+      <div className="border-b border-edge pb-2 overflow-x-auto no-scrollbar">
         <nav
           aria-label="Workout navigation"
-          className="flex flex-wrap items-center gap-2"
+          className="flex items-center gap-2 min-w-max pb-1"
         >
           <button
             type="button"
             aria-current={activeSubTab === 'catalogue' ? 'page' : undefined}
             onClick={() => handleSubTabClick('catalogue')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border shrink-0 ${
               activeSubTab === 'catalogue'
                 ? 'bg-brand text-white border-brand shadow-xs'
                 : 'bg-surface border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'
@@ -105,7 +105,7 @@ export function WorkoutDashboard() {
             type="button"
             aria-current={activeSubTab === 'profile' ? 'page' : undefined}
             onClick={() => handleSubTabClick('profile')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border shrink-0 ${
               activeSubTab === 'profile'
                 ? 'bg-brand text-white border-brand shadow-xs'
                 : 'bg-surface border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'
@@ -121,7 +121,7 @@ export function WorkoutDashboard() {
             type="button"
             aria-current={activeSubTab === 'planner' ? 'page' : undefined}
             onClick={() => handleSubTabClick('planner')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border shrink-0 ${
               activeSubTab === 'planner'
                 ? 'bg-brand text-white border-brand shadow-xs'
                 : 'bg-surface border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'
@@ -137,7 +137,7 @@ export function WorkoutDashboard() {
             type="button"
             aria-current={activeSubTab === 'log' ? 'page' : undefined}
             onClick={() => handleSubTabClick('log')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border shrink-0 ${
               activeSubTab === 'log'
                 ? 'bg-brand text-white border-brand shadow-xs'
                 : 'bg-surface border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'
@@ -153,7 +153,7 @@ export function WorkoutDashboard() {
             type="button"
             aria-current={activeSubTab === 'progress' ? 'page' : undefined}
             onClick={() => handleSubTabClick('progress')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border shrink-0 ${
               activeSubTab === 'progress'
                 ? 'bg-brand text-white border-brand shadow-xs'
                 : 'bg-surface border-edge text-inkSecondary hover:text-ink hover:bg-surfaceMuted'

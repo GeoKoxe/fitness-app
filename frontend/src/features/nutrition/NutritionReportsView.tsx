@@ -113,6 +113,8 @@ export function NutritionReportsView() {
 
           <div className="flex items-center gap-1.5 text-xs">
             <input
+              id="report-start-date"
+              name="report-start-date"
               type="date"
               value={startDate}
               onChange={(e) => {
@@ -124,6 +126,8 @@ export function NutritionReportsView() {
             />
             <span className="text-inkSecondary dark:text-darkInkSecondary font-medium">to</span>
             <input
+              id="report-end-date"
+              name="report-end-date"
               type="date"
               value={endDate}
               onChange={(e) => {

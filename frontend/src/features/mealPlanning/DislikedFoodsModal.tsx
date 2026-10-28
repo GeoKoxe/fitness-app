@@ -115,6 +115,8 @@ export function DislikedFoodsModal({ onClose, onDislikedFoodsChanged }: Disliked
         {/* Add food form */}
         <form onSubmit={handleAdd} className="mt-4 flex gap-2">
           <input
+            id="disliked-food-input"
+            name="disliked-food-input"
             type="text"
             placeholder="Add an ingredient (e.g. mushrooms, pork)..."
             aria-label="Add an ingredient"

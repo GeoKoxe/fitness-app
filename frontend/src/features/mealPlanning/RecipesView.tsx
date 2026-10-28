@@ -168,8 +168,11 @@ export function RecipesView({ initialRecipeId, onCloseInitialRecipe }: RecipesVi
 
         <div className="w-full sm:w-64">
           <input
+            id="recipes-search"
+            name="recipes-search"
             type="text"
             placeholder="Search recipes or tags..."
+            aria-label="Search recipes"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full px-3 py-1.5 bg-canvas dark:bg-darkCanvas border border-sand dark:border-darkBorder rounded-xl text-xs text-ink dark:text-darkInk focus:outline-none focus:ring-2 focus:ring-periwinkle"

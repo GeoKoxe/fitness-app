@@ -86,9 +86,9 @@ html.dark, .dark {
   --theme-border-strong: #3D5084;
   --theme-border-subtle: #27355A;
 
-  --theme-primary: #7588C4;
-  --theme-primary-hover: #8A9CD4;
-  --theme-primary-text: #111728;
+  --theme-primary: #586BA4;
+  --theme-primary-hover: #4A5B8E;
+  --theme-primary-text: #FFFFFF;
 
   --theme-secondary: #243358;
   --theme-secondary-hover: #2E416E;
@@ -139,12 +139,25 @@ html.dark, .dark {
   --color-butter: #F5DD90;
   --color-sand: #F5DFBB;
   --color-canvas: #FFF9EF;
-  --color-surface: #FFFCF6;
-  --color-ink: #1F2847;
-  --color-ink-secondary: #546182;
-  --color-inkSecondary: #546182;
+  --color-surface: var(--theme-surface-card);
+  --color-ink: var(--theme-text-main);
+  --color-ink-secondary: var(--theme-text-muted);
+  --color-inkSecondary: var(--theme-text-muted);
+  --color-inkMuted: var(--theme-text-muted);
+  --color-inkSubtle: var(--theme-text-subtle);
   --color-alert: #C2455A;
   --color-mist: #DCE2F4;
+
+  /* Brand Action Tokens */
+  --color-brand: var(--theme-primary);
+  --color-brand-hover: var(--theme-primary-hover);
+  --color-brandHover: var(--theme-primary-hover);
+
+  /* Semantic Component Surface & Border Tokens */
+  --color-edge: var(--theme-border-default);
+  --color-surfaceMuted: var(--theme-surface-muted);
+  --color-surfaceRaised: var(--theme-surface-card-raised);
+  --color-surfaceHover: var(--theme-surface-muted);
 
   /* Dark Navy Core Palette utilities */
   --color-dark-canvas: #111728;
